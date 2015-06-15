@@ -492,4 +492,4 @@ shinyApp(ui, server)
 #     github = str_match(source, "Github \\((.*)\\)")[,2]) %>%
 #   arrange(!is.na(github), package, github) %>%
 #   write_csv('prep/R_packages.csv')
-#p = read_csv('https://raw.githubusercontent.com/bbest/consmap/master/prep/R_packages.csv')
+# see prep/install_packages.R for how the above session_info() gets used

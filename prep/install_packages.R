@@ -1,5 +1,5 @@
 # install R packages necessary to run Shiny app
-# TODO: check for essential version of leaflet
+# TODO: check for essential branch of leaflet: https://github.com/rstudio/leaflet/tree/joe/feature/raster-image
 
 # get packages to run installs
 for (pkg in c('readr','stringr','dplyr','devtools')){
