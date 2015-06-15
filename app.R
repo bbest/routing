@@ -15,6 +15,7 @@
 library(readr)
 library(dplyr)
 library(sp)
+library(stringr)
 library(rgdal)
 library(raster)
 select = dplyr::select
@@ -483,6 +484,12 @@ shinyApp(ui, server)
 # appDependencies()
 # i = devtools::session_info()
 # cat(as.character(as.list(i)[[1]]), file='prep/R_environment.txt', sep='\n')
-# as.list(i)[[2]] %>% 
+# i %>%
+#   as.list() %>% 
+#   .[[2]] %>%
 #   as.data.frame() %>%
+#   mutate(
+#     github = str_match(source, "Github \\((.*)\\)")[,2]) %>%
+#   arrange(!is.na(github), package, github) %>%
 #   write_csv('prep/R_packages.csv')
+#p = read_csv('https://raw.githubusercontent.com/bbest/consmap/master/prep/R_packages.csv')
