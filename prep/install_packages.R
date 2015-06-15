@@ -1,5 +1,4 @@
 # install R packages necessary to run Shiny app
-# TODO: check for essential branch of leaflet: https://github.com/rstudio/leaflet/tree/joe/feature/raster-image
 
 # get packages to run installs
 for (pkg in c('readr','stringr','dplyr','devtools')){
@@ -9,17 +8,19 @@ for (pkg in c('readr','stringr','dplyr','devtools')){
   }  else {
     cat(sprintf('----\n%s: already installed\n', pkg))
   }
-  library(pkg, character.only=T)
+  require(pkg, character.only=T)
 }
 
 # read output from as.list(devtools::session_info())[[2]]
 p = read_csv('https://raw.githubusercontent.com/bbest/consmap/master/prep/R_packages.csv')
+# debug: setwd('Z:/bbest On My Mac/github/consmap'); p = read_csv('prep/R_packages.csv')
 
 # iterate through packages
 #   installing from CRAN or Github as needed
 for (i in 1:nrow(p)){
   pkg = p$package[i]
   gh  = p$github[i]
+
   if (!require(pkg, character.only=T)){
     if (is.na(gh)){
       cat(sprintf('----\n%s: INSTALLING from CRAN\n...\n', pkg))
@@ -29,7 +30,21 @@ for (i in 1:nrow(p)){
       install_github(gh)
     }
   } else {
-    cat(sprintf('----\n%s: already installed\n', pkg))
+    # check if forcing same version
+    if (!is.na(gh) & p$force[i]){
+      gh0 = devtools:::package_info(pkg) %>%
+        .[,'source'] %>%
+        str_match("Github \\((.*)\\)") %>%
+        .[,2]
+      if (gh != gh0){
+        cat(sprintf('----\n%s: RE-INSTALLING from GITHUB (%s -> %s)\n...\n', pkg, gh0, gh))
+        install_github(gh)
+      } else {
+        cat(sprintf('----\n%s (%s): already installed\n', pkg, gh))
+      }
+    } else {
+      cat(sprintf('----\n%s: already installed\n', pkg))
+    }
   }
 }
 
