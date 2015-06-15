@@ -42,6 +42,7 @@ xtable,*,1.7-4,2014-09-12,CRAN (R 3.1.1),NA
 yaml,*,2.1.13,2014-06-12,CRAN (R 3.1.0),NA
 ggvis,,0.4.1.9000,2015-06-10,Github (rstudio/ggvis@d2a2a36),rstudio/ggvis@d2a2a36
 htmltools,,0.2.6,2014-09-18,Github (rstudio/htmltools@097ce08),rstudio/htmltools@097ce08
+BH,,,,CRAN,
 rasterfaster,,0.1,2015-05-28,Github (jcheng5/rasterfaster@7d00a09),jcheng5/rasterfaster@7d00a09
 scales,,0.2.4.99,2015-06-04,Github (hadley/scales@f0f93ac),hadley/scales@f0f93ac
 shinyjs,,0.0.6.4,2015-06-10,Github (daattali/shinyjs@b1781ed),daattali/shinyjs@b1781ed
