@@ -482,7 +482,7 @@ shinyApp(ui, server)
 #library(devtools)
 # appDependencies()
 # i = devtools::session_info()
-# cat(as.character(as.list(i)[[1]]), file='data/R_environment.txt', sep='\n')
+# cat(as.character(as.list(i)[[1]]), file='prep/R_environment.txt', sep='\n')
 # as.list(i)[[2]] %>% 
 #   as.data.frame() %>%
-#   write_csv('data/R_packages.csv')
+#   write_csv('prep/R_packages.csv')
