@@ -11,6 +11,17 @@
 # - try cells as polygons
 # - add offshore wind raster. see marine cadastre w/ leases (active?), http://atlanticwindconnection.com/
 # - consider click/hover on spp weights to show species distribution map on right
+# - add progress indicator for: 
+#   a. routing b/n new pts by transform, 
+#   b. updating risk surface based on new industry profile / species weights.
+#   See:
+#   - http://shiny.rstudio.com/articles/progress.html
+#   - http://shiny.rstudio.com/gallery/progress-bar-example.html
+#   - http://shiny.rstudio.com/reference/shiny/latest/Progress.html
+#   - http://shiny.rstudio.com/reference/shiny/latest/withProgress.html
+# - hide / show details of conservation risk surface by species / weights / industry with:
+#   - [shinyBS](https://ebailey78.github.io/shinyBS/examples.html) OR
+#   - [shinyjs](http://cran.r-project.org/web/packages/shinyjs/)
 
 library(readr)
 library(dplyr)
@@ -38,7 +49,7 @@ epsg3857 <- "+proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y
 load_rdata = T
 
 # paths
-app_dir        = '~/github/dissertation/app/bdb'
+app_dir        = '~/github/consmap'
 data = c(
   rdata          = 'routes.Rdata',       # '~/Google Drive/dissertation/data/routing/demo.Rdata'
   grd            = 'v72zw_epsg3857.grd', # '~/Google Drive/dissertation/data/bc/v72zw_epsg3857.grd'
@@ -479,17 +490,23 @@ shinyApp(ui, server)
 # system(sprintf("ssh bbest@fitz.nceas.ucsb.edu 'chmod g+w -R /srv/shiny-server/%s'", basename(app_dir)))
 
 # deploy to shinyapps
-#library(shinyapps)
-#library(devtools)
-# appDependencies()
-# i = devtools::session_info()
+# shinyapps::appDependencies()
+# p = devtools::session_info()
 # cat(as.character(as.list(i)[[1]]), file='prep/R_environment.txt', sep='\n')
-# i %>%
+# p = p %>%
 #   as.list() %>% 
 #   .[[2]] %>%
 #   as.data.frame() %>%
 #   mutate(
-#     github = str_match(source, "Github \\((.*)\\)")[,2]) %>%
-#   arrange(!is.na(github), package, github) %>%
-#   write_csv('prep/R_packages.csv')
-# see prep/install_packages.R for how the above session_info() gets used
+#     github = str_match(source, "Github \\((.*)\\)")[,2],
+#     force = F) %>%
+#   arrange(!is.na(github), package, github)
+# p = rbind(
+#   p %>%
+#     filter(!package %in% c('rasterfaster','leaflet')),
+#   p[p$package=='rasterfaster',],
+#   p[p$package=='leaflet',] %>%
+#     mutate(
+#       force=T))
+# write_csv(p, 'prep/R_packages.csv')
+# # see prep/install_packages.R for how the above session_info() gets used
