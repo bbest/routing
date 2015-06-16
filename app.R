@@ -184,7 +184,7 @@ ui <- fluidPage(
   navbarPage(
     "Conservation",
     tabPanel(
-      "Routing",
+      "Routing", icon = icon('road'),
       fluidRow(
         column(
           6,
@@ -270,7 +270,7 @@ ui <- fluidPage(
             $$"))))),
     
     tabPanel(
-      "Siting",
+      "Siting", icon = icon('map-marker'),
       helpText('Coming soon...'))))
 
 # server ----
