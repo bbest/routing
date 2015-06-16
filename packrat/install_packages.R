@@ -50,3 +50,4 @@ for (i in 1:nrow(p)){
 
 # run Shiny app from Github
 shiny::runGitHub('bbest/consmap')
+shinyapps::appDependencies()
