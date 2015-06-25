@@ -33,7 +33,7 @@ select = dplyr::select
 library(gdistance)
 library(scales)
 library(rasterfaster) # devtools::install_github("jcheng5/rasterfaster")
-library(leaflet)      # devtools::install_github("rstudio/leaflet@joe/feature/raster-image")
+library(leaflet)      # devtools::install_github("rstudio/leaflet@joe/feature/raster-image") # devtools::install_github("rstudio/leaflet@joe/feature/raster-image")
 library(htmltools)
 library(shiny)
 library(shinyjs)      # devtools::install_github("daattali/shinyjs")
@@ -512,3 +512,5 @@ shinyApp(ui, server)
 #       force=T))
 # write_csv(p, 'prep/R_packages.csv')
 # # see prep/install_packages.R for how the above session_info() gets used
+# deployApp(appName='consmap') # to https://bdbest.shinyapps.io/consmap
+

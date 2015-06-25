@@ -1,8 +1,8 @@
 name: consmap
 account: bdbest
 server: shinyapps.io
-bundleId: 203538
+bundleId: 211472
 url: https://bdbest.shinyapps.io/consmap
-when: 1434416932.87133
+when: 1435250599.02037
 asMultiple: FALSE
 asStatic: FALSE
