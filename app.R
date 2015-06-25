@@ -196,15 +196,23 @@ ui <- fluidPage(
     "Conservation",
     tabPanel(
       "Routing", icon = icon('road'),
+      
+      fluidRow(
+        helpText(HTML(renderMarkdown(text="**Instructions.** Click on a point in the tradeoff chart below to display the mapped route to the right and values below. 
+                 Map is zoomable/pannable and start/end points clickable.
+                 Eventually you'll be able to create arbitrary start/end points for tradeoff analysis of conservation routing.")))),
+      
+      hr(),
+      
       fluidRow(
         column(
           6,
-         selectInput(
-           'sel_industry', 'Industry Profile:',
-           c('Oil Tanker'='rt_oil','Shipping Tanker'='rt_ship','Cruise Ship'='rt_cruise')),
-         hidden(helpText(
-           id='hlp_industry', 
-           'Eventually these industry profiles will enable customized species responses depending on types of impact.'))),
+          selectInput(
+            'sel_industry', 'Industry Profile:',
+            c('Oil Tanker'='rt_oil','Shipping Tanker'='rt_ship','Cruise Ship'='rt_cruise')),
+          hidden(helpText(
+            id='hlp_industry', 
+            'Eventually these industry profiles will enable customized species responses depending on types of impact.'))),
         column(
           6, 
           selectInput(
@@ -213,12 +221,6 @@ ui <- fluidPage(
               filter(routing==T) %$% 
               split(.[,c('name','code')], country) %>%
               lapply(function(x) setNames(x$code, x$name))))),
-      hr(),
-      
-      fluidRow(
-        helpText(HTML(renderMarkdown(text="**Instructions.** Click on a point in the tradeoff chart below to display the mapped route to the right and values below. 
-                 Map is zoomable/pannable and start/end points clickable.
-                 Eventually you'll be able to create arbitrary start/end points for tradeoff analysis of conservation routing.")))),
 
       fluidRow(
         column(
