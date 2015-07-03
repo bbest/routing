@@ -1,0 +1,11 @@
+code,name,group,srank,cosewic,cosewic_date,notes
+HP,Harbour porpoise,Delphinids,S3,SC,3-Nov,
+DP,Dall's porpoise,Delphinids,S4S5,NAR,May-89,
+PW,Pacific white-sided dolphin,Delphinids,S4S5,NAR,May-90,
+KW,Killer whale,Delphinids,S3,T,8-Nov,"TODO: separate into populations: offshore, transients, southern residents, northern residents"
+HW,Humpback whale,Whales,S3,T,3-May,
+FW,Fin whale,Whales,S2,T,5-May,S2N - nonbreeding
+MW,Minke whale,Whales,S4,NAR,6-Apr,S4N - nonbreeding
+HS,Harbour seal,Pinnipeds,S5,NAR,May-99,
+SSL,Stellar sea lion,Pinnipeds,S2S3,,,"S2S3B,S3N - breeding, nonbreeding"
+ES,Elephant seal,Pinnipeds,S4,,,"really SNA, but CA and AL listed as S4"

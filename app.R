@@ -24,7 +24,9 @@
 #   - [shinyjs](http://cran.r-project.org/web/packages/shinyjs/)
 
 library(readr)
+library(magrittr)
 library(dplyr)
+library(tidyr)
 library(sp)
 library(stringr)
 library(rgdal)
@@ -47,15 +49,32 @@ library(ggplot2)
 epsg4326 <- "+proj=longlat +datum=WGS84 +no_defs"
 epsg3857 <- "+proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs"
 load_rdata = T
+spp_list = list(
+  'Delphinids' = c(
+    'Harbour porpoise'='HP',
+    "Dall's porpoise"='DP',
+    'Pacific white-sided dolphin'='PW',
+    'Killer whale'='KW'),
+  'Whales' = c(
+    'Humpback whale'='HW',
+    'Fin whale'='FW',
+    'Minke whale'='MW'),
+  'Pinnipeds' = c(
+    'Harbour seal'='HS',
+    'Steller sea lion'='SSL',
+    'Elephant seal'='ES'))
+v = utils::stack(spp_list)
+spp_names = setNames(object=row.names(v), nm=v$values)
 
 # paths
 app_dir        = '~/github/consmap'
 data = c(
-  rdata          = 'routes.Rdata',       # '~/Google Drive/dissertation/data/routing/demo.Rdata'
-  grd            = 'v72zw_epsg3857.grd', # '~/Google Drive/dissertation/data/bc/v72zw_epsg3857.grd'
-  extents_csv    = 'extents.csv',
-  points_csv     = 'points.csv',
-  spp_ranks_csv   = 'spp_ranks.csv',
+  rdata           = 'routes.Rdata',       # '~/Google Drive/dissertation/data/routing/demo.Rdata'
+  grd             = 'v72zw_epsg3857.grd', # '~/Google Drive/dissertation/data/bc/v72zw_epsg3857.grd'
+  extents_csv     = 'extents.csv',
+  points_csv      = 'points.csv',
+  spp_shp         = 'bc_spp_gcs.shp',
+  spp_csv         = 'spp.csv',
   spp_weights_csv = 'spp_weights.csv') 
 data = setNames(sprintf('data/%s', data), names(data))
 
@@ -67,25 +86,65 @@ if (!file.exists('data')) setwd(app_dir)
 # check all files exist
 stopifnot(all(file.exists(data)))
 
-# raster
+# composite risk raster
 r = raster(data[['grd']])
 
-# points
+# route beg/end points
 pts = read_csv(data[['points_csv']])
+
+# species polygons
+spp_ply = readOGR(
+  dirname(data[['spp_shp']]),
+  tools::file_path_sans_ext(basename(data[['spp_shp']])))
 
 # extents
 extents = read_csv(data[['extents_csv']]) %>%
   arrange(country, name, code)
 
-# species weights
-spp_ranks = read_csv(data[['spp_ranks_csv']])
+# species weights ----
+spp = read_csv(data[['spp_csv']]) %>%
+  arrange(group, name)
 spp_weights = read_csv(data[['spp_weights_csv']])
-spp_labels = spp_ranks %>%
-  group_by(SRANK) %>%
+spp_labels = spp %>%
+  group_by(srank) %>%
   summarize(
-    label = paste(SP, collapse=',')) %>%
-  left_join(spp_weights, by='SRANK')
-  
+    label = paste(code, collapse=',')) %>%
+  left_join(spp_weights, by='srank')
+
+
+# species composite risk ----
+
+# normalize all species densities
+for (sp in spp$code){ # sp = spp$code[1] # names(spp_ply@data)
+  d = spp_ply@data[,sprintf('%s_d', sp)]
+  w = spp %>%
+    left_join(spp_weights, by='srank') %>%
+    filter(code == sp) %>%
+    .$weight_logit
+  spp_ply@data[, sprintf('%s_z', sp)] = (d - mean(d, na.rm=T)) / sd(d, na.rm=T) * w
+}
+
+# sum across species
+spp_ply@data$ALL_z = apply(spp_ply@data[, sprintf('%s_z', spp$code)], 1, function(x) sum(x, na.rm = T))
+
+# create popup for ALL
+x = spp_ply@data[,c('CellID', 'ALL_z', sprintf('%s_z', spp$code))] %>%
+  gather('SP_z', 'value', -CellID, -ALL_z) %>% 
+  arrange(CellID, desc(value)) %>% 
+  group_by(CellID, ALL_z) %>%
+  summarize(
+    ALL_popup = paste(
+      sprintf('<strong>%s</strong>: %0.3g', SP_z, value),
+      collapse='<br>\n')) %>%
+  mutate(
+    popup = sprintf('<strong>ALL_z</strong>: %0.3g<br>\n%s', ALL_z, ALL_popup)) %>%
+  as.data.frame()
+spp_ply@data = data.frame(spp_ply@data, x[match(spp_ply@data[,'CellID'], x[,'CellID']),])
+
+# shift to all positive for use as cost surface
+spp_ply@data = spp_ply@data %>%
+  mutate(ALL_c = ALL_z - min(ALL_z, na.rm=T))
+
 # default transform for d data.frame
 d_transform = 'x * 10'
   
@@ -220,8 +279,19 @@ ui <- fluidPage(
             extents %>% 
               filter(routing==T) %$% 
               split(.[,c('name','code')], country) %>%
+              lapply(function(x) setNames(x$code, x$name))),
+          
+          selectInput(
+            'sel_spp', 'Species:',
+            data_frame(
+              group='All', name='Composite species risk', code='ALL') %>%
+              rbind(
+                spp %>%
+                  arrange(group, name) %>%
+                  select(group, name, code)) %$% 
+              split(.[,c('name','code')], group) %>%
               lapply(function(x) setNames(x$code, x$name))))),
-
+      
       fluidRow(
         column(
           4,  # 
@@ -348,8 +418,8 @@ server <- function(input, output, session) {
       scale_numeric('y', reverse=T) %>% 
       add_tooltip(d_hover, 'hover') %>% 
       add_tooltip(d_click, 'click') %>%
-      add_axis('x', title = 'conservation (risk from min)') %>% 
-      add_axis('y', title = 'industry (km from min)') %>% 
+      add_axis('x', title = 'risk to species (risk)') %>% 
+      add_axis('y', title = 'cost to industry (km)') %>% 
       hide_legend('stroke') %>%
       #set_options(width = 300, height = 400) %>%
       set_options(width = "auto", height = "auto", resizable=FALSE)
@@ -411,36 +481,44 @@ server <- function(input, output, session) {
   
   output$mymap <- renderLeaflet({
     b = get_bbox()
+    sp_code = input$sel_spp #sp_code = 'HP'
+    sp_fld  = ifelse(
+      sp_code == 'ALL',
+      'ALL_z',
+      sprintf('%s_d', sp_code))
+    sp_vals = spp_ply@data[,sp_fld]
+    sp_rng  = range(sp_vals)
+    sp_pal  = colorNumeric(
+      palette = 'Reds',
+      domain = sp_rng)
+    if (sp_code == 'ALL'){
+      sp_popup = spp_ply@data[,'ALL_popup']  
+    } else {
+      sp_popup = sprintf('<strong>%s: </strong> %g', sp_fld, sp_vals)
+    }
+    sp_title = ifelse(
+      sp_code == 'ALL',
+      sprintf('Species risk<br> score'),
+      sprintf('%s<br> density (#/km<sup>2</sup>)', spp_names[sp_code]))
     leaflet() %>%
       addProviderTiles("Stamen.TonerLite", options = providerTileOptions(noWrap = TRUE)) %>% 
-      addRasterImage(
-        x, opacity = 0.8, project = F,
-        colors = colorNumeric(palette = 'Reds', domain = x_rng, na.color = "#00000000", alpha = TRUE)) %>%
+#       addRasterImage(
+#         x, opacity = 0.8, project = F,
+#         colors = colorNumeric(palette = 'Reds', domain = x_rng, na.color = "#00000000", alpha = TRUE)) %>%
+      # TODO: add popup, xfer raster vals to spp_ply, on fly composite to tmp_val
+      addPolygons(
+        data = spp_ply,
+        stroke = FALSE, smoothFactor = 0.9, fillOpacity = 0.9,
+        color = sp_pal(sp_vals),
+        popup = sp_popup) %>%
       addCircleMarkers(
         ~lon, ~lat, radius=6, color='blue', data=pts, 
         popup = ~sprintf('<b>%s</b><br>%0.2f, %0.2f', name, lon, lat)) %>%
       addLegend(
         'bottomleft', 
-        pal = colorNumeric(palette = 'Reds', domain = x_rng),
-        values = x_rng, title = 'Conservation <br> Risk') %>%
+        pal = sp_pal,values = sp_rng, title = sp_title) %>%
       fitBounds(b[1], b[2], b[3], b[4])
   })
-
-  
-  df = local({
-    n = 300; x = rnorm(n); y = rnorm(n)
-    z = sqrt(x^2 + y^2); z[sample(n, 10)] = NA
-    data.frame(x, y, z)
-  })
-  pal = colorNumeric('OrRd', df$z)
-  leaflet() %>%
-    addCircleMarkers(~x, ~y, color = ~pal(z), data=df) %>%
-    addLegend(pal = pal, values = range(df$z, na.rm=T), title='z')
-  
-  leaflet() %>%
-    addCircleMarkers(~x, ~y, color = ~pal(z), data=df) %>%
-    addLegend(pal = pal, values = range(df$z, na.rm=T), title='z')
-  
   
   #observeEvent(input$map1_marker_click, {
   observeEvent(input$txt_transform, {
@@ -450,7 +528,7 @@ server <- function(input, output, session) {
       removeShape(c('routes')) %>% 
       addPolylines(data = routes[[i]][['route_gcs']], layerId='routes', color='blue') # , color='purple', weight=3)
   })
-  
+    
   observeEvent(input$sel_industry, {
     if (input$sel_industry != 'rt_oil'){
       shinyjs::show('hlp_industry')
@@ -458,27 +536,12 @@ server <- function(input, output, session) {
       shinyjs::hide('hlp_industry')
     }
   })
-  
-#   observeEvent(input$sel_extent, {
-#     
-#     b = extents %>%
-#       filter(code == input$sel_extent)
-#     
-#     pts_gcs = pts %>% 
-#       as.data.frame() %>%
-#       SpatialPointsDataFrame(
-#         data=., coords = .[,c('lon','lat')], proj4string = CRS(epsg4326))
-#     
-#     
-#     leafletProxy('mymap') %>%
-#       fitBounds(b$lon_min, b$lat_min, b$lon_max, b$lat_max)
-#   })
-  
+
   output$plt_spp_weights = renderPlot({
     
-    g = ggplot(aes(x=SRANK, y=WEIGHT.LOGIT, group=1), data=spp_weights) +
+    g = ggplot(aes(x=srank, y=weight_logit, group=1), data=spp_weights) +
       geom_point() + geom_line(col='slategray') +
-      annotate('text', x=spp_labels$SRANK, y=spp_labels$WEIGHT.LOGIT+0.01, label=spp_labels$label)
+      annotate('text', x=spp_labels$srank, y=spp_labels$weight_logit+0.01, label=spp_labels$label)
     print(g)
     
   })
@@ -486,6 +549,11 @@ server <- function(input, output, session) {
 }
 
 shinyApp(ui, server)
+
+# deploy by copying over ssh to the MGEL server
+# system(sprintf('rsync -r --delete %s bbest@shiny.env.duke.edu:/shiny/bbest/', app_dir))
+# system(sprintf("ssh bbest@shiny.env.duke.edu 'chmod g+w -R /shiny/bbest/%s'", basename(app_dir)))
+# app_dir=~/github/consmap; rsync -r --delete $app_dir bbest@shiny.env.duke.edu:/shiny/bbest/
 
 # deploy by copying over ssh to the NCEAS server
 # system(sprintf('rsync -r --delete %s bbest@fitz.nceas.ucsb.edu:/srv/shiny-server/', app_dir))
