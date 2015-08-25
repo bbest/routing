@@ -3,7 +3,6 @@
 # - right: 
 #
 # TODO:
-# - cleanup, checkin, upload to server, email
 # - table: highlight row with table
 # - select alternate points to route (need time progressed), see
 #   https://rstudio.github.io/leaflet/shiny.html#inputsevents
@@ -557,13 +556,13 @@ server <- function(input, output, session) {
   })
   
   #observeEvent(input$map1_marker_click, {
-#   observeEvent(input$txt_transform, {
-#     # add least cost path
-#     i = which(sapply(routes, function(z) z$transform) == input$txt_transform)
-#     leafletProxy('mymap') %>%
-#       removeShape(c('routes')) %>% 
-#       addPolylines(data = routes[[i]][['route_gcs']], layerId='routes', color='blue') # , color='purple', weight=3)
-#   })
+  observeEvent(input$txt_transform, {
+    # add least cost path
+    i = which(sapply(routes, function(z) z$transform) == input$txt_transform)
+    leafletProxy('mymap') %>%
+      removeShape(c('routes')) %>% 
+      addPolylines(data = routes[[i]][['route_gcs']], layerId='routes', color='blue') # , color='purple', weight=3)
+  })
     
   observeEvent(input$sel_industry, {
     if (input$sel_industry != 'rt_oil'){
