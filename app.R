@@ -51,18 +51,18 @@ epsg3857 <- "+proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y
 load_rdata = T
 spp_list = list(
   'Delphinids' = c(
-    'Harbour porpoise'='HP',
-    "Dall's porpoise"='DP',
-    'Pacific white-sided dolphin'='PW',
-    'Killer whale'='KW'),
+    'Harbour porpoise'            = 'HP',
+    "Dall's porpoise"             = 'DP',
+    'Pacific white-sided dolphin' = 'PW',
+    'Killer whale'                = 'KW'),
   'Whales' = c(
-    'Humpback whale'='HW',
-    'Fin whale'='FW',
-    'Minke whale'='MW'),
+    'Humpback whale'              = 'HW',
+    'Fin whale'                   = 'FW',
+    'Minke whale'                 = 'MW'),
   'Pinnipeds' = c(
-    'Harbour seal'='HS',
-    'Steller sea lion'='SSL',
-    'Elephant seal'='ES'))
+    'Harbour seal'                = 'HS',
+    'Steller sea lion'            = 'SSL',
+    'Elephant seal'               = 'ES'))
 v = utils::stack(spp_list)
 spp_names = setNames(object=row.names(v), nm=v$values)
 
@@ -73,6 +73,7 @@ data = c(
   grd             = 'v72zw_epsg3857.grd', # '~/Google Drive/dissertation/data/bc/v72zw_epsg3857.grd'
   extents_csv     = 'extents.csv',
   points_csv      = 'points.csv',
+  ports_csv       = 'ports_bc.csv',
   spp_shp         = 'bc_spp_gcs.shp',
   spp_csv         = 'spp.csv',
   spp_weights_csv = 'spp_weights.csv') 
@@ -91,6 +92,10 @@ r = raster(data[['grd']])
 
 # route beg/end points
 pts = read_csv(data[['points_csv']])
+
+# read ports
+ports = read_csv(data[['ports_csv']]) %>%
+  mutate(pt_radius = log10(sum_ktons) / max(log10(sum_ktons)))
 
 # species polygons
 spp_ply = readOGR(
@@ -121,13 +126,22 @@ for (sp in spp$code){ # sp = spp$code[1] # names(spp_ply@data)
     left_join(spp_weights, by='srank') %>%
     filter(code == sp) %>%
     .$weight_logit
+  # z-score, aka "standard score" in https://en.wikipedia.org/wiki/Normalization_(statistics)
   spp_ply@data[, sprintf('%s_z', sp)] = (d - mean(d, na.rm=T)) / sd(d, na.rm=T) * w
 }
 
 # sum across species
 spp_ply@data$ALL_z = apply(spp_ply@data[, sprintf('%s_z', spp$code)], 1, function(x) sum(x, na.rm = T))
 
+
+# TODO: add industry weights
+w = spp %>%
+  left_join(spp_weights, by='srank') %>%
+  filter(code == sp) %>%
+  .$weight_logit
+
 # create popup for ALL
+# TODO: consider outputting all values: x_i - \mu_s / sd_s * w_s
 x = spp_ply@data[,c('CellID', 'ALL_z', sprintf('%s_z', spp$code))] %>%
   gather('SP_z', 'value', -CellID, -ALL_z) %>% 
   arrange(CellID, desc(value)) %>% 
@@ -137,7 +151,7 @@ x = spp_ply@data[,c('CellID', 'ALL_z', sprintf('%s_z', spp$code))] %>%
       sprintf('<strong>%s</strong>: %0.3g', SP_z, value),
       collapse='<br>\n')) %>%
   mutate(
-    popup = sprintf('<strong>ALL_z</strong>: %0.3g<br>\n%s', ALL_z, ALL_popup)) %>%
+    ALL_popup = sprintf('<strong>ALL_z</strong>: %0.3g<br>\nContributing species normalized scores:<br>\n%s', ALL_z, ALL_popup)) %>%
   as.data.frame()
 spp_ply@data = data.frame(spp_ply@data, x[match(spp_ply@data[,'CellID'], x[,'CellID']),])
 
@@ -503,31 +517,53 @@ server <- function(input, output, session) {
     leaflet() %>%
       addProviderTiles("Stamen.TonerLite", options = providerTileOptions(noWrap = TRUE)) %>% 
 #       addRasterImage(
-#         x, opacity = 0.8, project = F,
+#         x, opacity = 0.8, project = F, group='c',
 #         colors = colorNumeric(palette = 'Reds', domain = x_rng, na.color = "#00000000", alpha = TRUE)) %>%
       # TODO: add popup, xfer raster vals to spp_ply, on fly composite to tmp_val
       addPolygons(
-        data = spp_ply,
+        data = spp_ply, group='Species',
         stroke = FALSE, smoothFactor = 0.9, fillOpacity = 0.9,
         color = sp_pal(sp_vals),
         popup = sp_popup) %>%
       addCircleMarkers(
-        ~lon, ~lat, radius=6, color='blue', data=pts, 
+        ~lon, ~lat, radius=6, color='blue', data=pts, layerId=~name, group='Points',
         popup = ~sprintf('<b>%s</b><br>%0.2f, %0.2f', name, lon, lat)) %>%
-      addLegend(
-        'bottomleft', 
-        pal = sp_pal,values = sp_rng, title = sp_title) %>%
+      addCircleMarkers(
+        lng=~lon, lat=~lat, data=ports, layerId=~port, group='Ports',
+        radius=~pt_radius*10, color='purple', stroke=F, fillOpacity = 0.5,
+        popup = ~sprintf(
+          '<b>%s</b><br>
+          location<br>
+          - longitude: %0.2f<br>
+          - latitude: %0.2f<br>
+          cargo (x1000 tons) handled, 2011<br>
+          - domestic: %s<br>
+          - international: %s<br>
+          - total: %s', 
+          port, lon, lat, 
+          formatC(int_ktons, 1, format='f', big.mark = ','), 
+          formatC(dom_ktons, 1, format='f', big.mark = ','), 
+          formatC(sum_ktons, 1, format='f', big.mark = ','))) %>%
+       addLegend(
+         'bottomleft', 
+         pal = sp_pal,values = sp_rng, title = sp_title) %>%
+      # Layers control
+      addLayersControl(
+        #baseGroups = c("OSM (default)", "Toner", "Toner Lite"),
+        overlayGroups = c('Species', 'Points', 'Ports'),
+        options = layersControlOptions(collapsed=T)
+      ) %>%
       fitBounds(b[1], b[2], b[3], b[4])
   })
   
   #observeEvent(input$map1_marker_click, {
-  observeEvent(input$txt_transform, {
-    # add least cost path
-    i = which(sapply(routes, function(z) z$transform) == input$txt_transform)
-    leafletProxy('mymap') %>%
-      removeShape(c('routes')) %>% 
-      addPolylines(data = routes[[i]][['route_gcs']], layerId='routes', color='blue') # , color='purple', weight=3)
-  })
+#   observeEvent(input$txt_transform, {
+#     # add least cost path
+#     i = which(sapply(routes, function(z) z$transform) == input$txt_transform)
+#     leafletProxy('mymap') %>%
+#       removeShape(c('routes')) %>% 
+#       addPolylines(data = routes[[i]][['route_gcs']], layerId='routes', color='blue') # , color='purple', weight=3)
+#   })
     
   observeEvent(input$sel_industry, {
     if (input$sel_industry != 'rt_oil'){
