@@ -549,7 +549,7 @@ server <- function(input, output, session) {
       # Layers control
       addLayersControl(
         #baseGroups = c("OSM (default)", "Toner", "Toner Lite"),
-        overlayGroups = c('Species', 'Points', 'Ports'),
+        overlayGroups = c('Route', 'Points', 'Ports', 'Species'),
         options = layersControlOptions(collapsed=T)
       ) %>%
       fitBounds(b[1], b[2], b[3], b[4])
@@ -560,8 +560,8 @@ server <- function(input, output, session) {
     # add least cost path
     i = which(sapply(routes, function(z) z$transform) == input$txt_transform)
     leafletProxy('mymap') %>%
-      removeShape(c('routes')) %>% 
-      addPolylines(data = routes[[i]][['route_gcs']], layerId='routes', color='blue') # , color='purple', weight=3)
+      removeShape(c('route')) %>% 
+      addPolylines(data = routes[[i]][['route_gcs']], layerId='route', group='Route', color='blue') # , color='purple', weight=3)
   })
     
   observeEvent(input$sel_industry, {
