@@ -12,7 +12,7 @@
   - cargo_n_move: Cargo Number of movements
   - cargo_gross_ktons: Cargo Gross tonnage ('000 t)
   - cargo_net_ktons: Cargo Net tonnage ('000 t)
-
+- got seaport codes from [Seaport codes 2002](http://www.photius.com/seaports/)
 
 ## Resources
 - [Data BC - Province of British Columbia](https://apps.gov.bc.ca/pub/dwds/home.so)

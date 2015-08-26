@@ -127,7 +127,10 @@ shinyServer(function(input, output, session) {
   x = (r / cellStats(r,'max'))
   x_rng = c(cellStats(x,'min'), cellStats(x,'max'))
   
+  
   progress$set(message = "Loading map", value = 0.3)
+  # TODO: move rendering of spp_ply out of main map so update overlay like route 
+  #       and rm warning "Attempting to set progress, but progress already closed." when selecting new spp
   output$mymap <- renderLeaflet({
     b = get_bbox()
     sp_code = input$sel_spp #sp_code = 'HP'
@@ -164,7 +167,7 @@ shinyServer(function(input, output, session) {
         ~lon, ~lat, radius=6, color='blue', data=pts, layerId=~name, group='Points',
         popup = ~sprintf('<b>%s</b><br>%0.2f, %0.2f', name, lon, lat)) %>%
       addCircleMarkers(
-        lng=~lon, lat=~lat, data=ports, layerId=~port, group='Ports',
+        lng=~lon, lat=~lat, data=filter(nodes, group=='Ports'), layerId=~name, group='Ports',
         radius=~pt_radius*10, color='purple', stroke=F, fillOpacity = 0.5,
         popup = ~sprintf(
           '<b>%s</b><br>
@@ -175,17 +178,26 @@ shinyServer(function(input, output, session) {
           - domestic: %s<br>
           - international: %s<br>
           - total: %s', 
-          port, lon, lat, 
+          name, lon, lat, 
           formatC(int_ktons, 1, format='f', big.mark = ','), 
           formatC(dom_ktons, 1, format='f', big.mark = ','), 
           formatC(sum_ktons, 1, format='f', big.mark = ','))) %>%
+      addCircleMarkers(
+        lng=~lon, lat=~lat, data=filter(nodes, group=='Oceanic Access'), layerId=~name, group='Oceanic Access',
+        radius=6, color='red', stroke=F, fillOpacity = 0.5,
+        popup = ~sprintf(
+          '<b>%s</b><br>
+          location<br>
+          - longitude: %0.2f<br>
+          - latitude: %0.2f', 
+          name, lon, lat)) %>%
        addLegend(
          'bottomleft', 
          pal = sp_pal,values = sp_rng, title = sp_title) %>%
       # Layers control
       addLayersControl(
         #baseGroups = c("OSM (default)", "Toner", "Toner Lite"),
-        overlayGroups = c('Route', 'Points', 'Ports', 'Species'),
+        overlayGroups = c('Route', 'Points', 'Ports', 'Oceanic Access', 'Species'),
         options = layersControlOptions(collapsed=T)
       ) %>%
       fitBounds(b[1], b[2], b[3], b[4])

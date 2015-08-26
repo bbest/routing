@@ -94,7 +94,19 @@ pts = read_csv(data[['points_csv']])
 
 # read ports
 ports = read_csv(data[['ports_csv']]) %>%
-  mutate(pt_radius = log10(sum_ktons) / max(log10(sum_ktons)))
+  mutate(pt_radius = log10(sum_ktons) / max(log10(sum_ktons))) %>%
+  arrange(name)
+
+# merge oceanic pts with ports
+nodes = bind_rows(
+  ports %>%
+    mutate(group = 'Ports'),
+  pts %>%
+    filter(name=='S of Haida Gwaii') %>%
+    select(name, lon, lat) %>%
+    mutate(
+      group     = 'Oceanic Access',
+      code      = 'SHG'))
 
 # species polygons
 spp_ply = readOGR(

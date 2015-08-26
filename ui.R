@@ -37,7 +37,7 @@ shinyUI(fluidPage(
             id='hlp_industry', 
             'Eventually these industry profiles will enable customized species responses depending on types of impact.'))),
         column(
-          6, 
+          3, 
           selectInput(
             'sel_extent', 'Study Area:',
             extents %>% 
@@ -53,6 +53,18 @@ shinyUI(fluidPage(
                 spp %>%
                   arrange(group, name) %>%
                   select(group, name, code)) %$% 
+              split(.[,c('name','code')], group) %>%
+              lapply(function(x) setNames(x$code, x$name)))),
+        column(
+          3, 
+          selectInput(
+            'sel_beg', 'Begin:',
+            nodes  %$% 
+              split(.[,c('name','code')], group) %>%
+              lapply(function(x) setNames(x$code, x$name))),
+          selectInput(
+            'sel_end', 'End:',
+            nodes  %$% 
               split(.[,c('name','code')], group) %>%
               lapply(function(x) setNames(x$code, x$name))))),
       
