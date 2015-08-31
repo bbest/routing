@@ -1,11 +1,10 @@
 # server ----
 
 # TODO: 
-# - cleanup files, checkin
-# - find nearest valid pixel for xy* before running shortestPath()
 # - zoom to recalculated begin/end extent, update highlighted points on map, see get_bbox
 # - add interactive point, see input$map_click, save CODE as sprintf('%0.4f,%0.4f', lon, lat)
 # - since routes made global and exists(routes), check to/fro of routes by setting as another attr
+# - add to port popup option to make beg/end pt of route
 
 shinyServer(function(input, output, session) {
 
@@ -19,8 +18,21 @@ shinyServer(function(input, output, session) {
   
   run_routing = function(lonlat1, lonlat2){
 
-    xy1 = spTransform(lonlat1, crs(epsg3857))
-    xy2 = spTransform(lonlat2, crs(epsg3857))
+#     xy1 = spTransform(lonlat1, crs(epsg3857))
+#     xy2 = spTransform(lonlat2, crs(epsg3857))
+    
+    # project original points to web mercator
+    xy = c(coordinates(lonlat1), coordinates(lonlat2)) %>%
+      matrix(ncol=2, byrow=T) %>%
+      SpatialPoints(crs(epsg4326)) %>%
+      spTransform(crs(epsg3857))
+    
+    # update to nearest non-NA points on raster for shortestPath to work
+    xy = c(
+      coordinates(r)[which.min(mask(distanceFromPoints(r, xy[1]), r)),],
+      coordinates(r)[which.min(mask(distanceFromPoints(r, xy[2]), r)),]) %>%
+      matrix(ncol=2, byrow=T) %>%
+      SpatialPoints(crs(epsg3857))
     
     progress <- shiny::Progress$new()
     routes = list()
@@ -35,8 +47,8 @@ shinyServer(function(input, output, session) {
       # calculate shortest path
       rt = shortestPath(
         geoCorrection(transition(1 / (r1 + xt), mean, directions=8), type="c"), 
-        xy1,
-        xy2,
+        xy[1],
+        xy[2],
         output='SpatialLines')
       
       # input to list with gcs projection, cost and distance
@@ -48,9 +60,15 @@ shinyServer(function(input, output, session) {
         place     = 'British Columbia, Canada')))
     }
     
-    # missing: extent, 
+    # attribute begin/end points, original and on valid raster
+    lonlat = spTransform(xy, crs(epsg4326))
+    attr(routes, 'pt_beg') = lonlat[1]
+    attr(routes, 'pt_end') = lonlat[2]
+    attr(routes, 'nm_beg') = input$sel_beg
+    attr(routes, 'nm_end') = input$sel_end
+    
+    # attribute data.frame of route values
     d = data.frame(
-      #extent    = sapply(routes, function(z) z$extent),
       transform = sapply(routes, function(z) z$transform),
       dist_km   = sapply(routes, function(z) z$dist_km),
       cost_x    = sapply(routes, function(z) z$cost_x)) %>%
