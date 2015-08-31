@@ -44,10 +44,12 @@ library(ggvis)        # devtools::install_github("rstudio/ggvis") # https://gith
 library(markdown)
 library(ggplot2)
 
+# Immediately enter the browser when an error occurs
+options(error = NULL) # error = NULL|browser|utils::recover
+
 # params
 epsg4326 <- "+proj=longlat +datum=WGS84 +no_defs"
 epsg3857 <- "+proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs"
-load_rdata = T
 spp_list = list(
   'Delphinids' = c(
     'Harbour porpoise'            = 'HP',
@@ -68,7 +70,7 @@ spp_names = setNames(object=row.names(v), nm=v$values)
 # paths
 app_dir        = '~/github/consmap'
 data = c(
-  rdata           = 'routes.Rdata',       # '~/Google Drive/dissertation/data/routing/demo.Rdata'
+  rdata           = 'routes/routes_SHG-KTM.Rdata',       # '~/Google Drive/dissertation/data/routing/demo.Rdata'
   grd             = 'v72zw_epsg3857.grd', # '~/Google Drive/dissertation/data/bc/v72zw_epsg3857.grd'
   extents_csv     = 'extents.csv',
   points_csv      = 'points.csv',
@@ -84,7 +86,7 @@ data = setNames(sprintf('data/%s', data), names(data))
 if (!file.exists('data')) setwd(app_dir) 
 
 # check all files exist
-stopifnot(all(file.exists(data)))
+#stopifnot(all(file.exists(data))) # DEBUG
 
 # composite risk raster
 r = raster(data[['grd']])
@@ -99,8 +101,13 @@ ports = read_csv(data[['ports_csv']]) %>%
 
 # merge oceanic pts with ports
 nodes = bind_rows(
+  data.frame(
+    group = 'New Point', 
+    name  = 'Click on map...', 
+    code  = 'NEW'),
   ports %>%
-    mutate(group = 'Ports'),
+    mutate(group = 'Ports') %>%
+    arrange(name),
   pts %>%
     filter(name=='S of Haida Gwaii') %>%
     select(name, lon, lat) %>%
@@ -171,91 +178,20 @@ spp_ply@data = spp_ply@data %>%
   mutate(ALL_c = ALL_z - min(ALL_z, na.rm=T))
 
 # default transform for d data.frame
-d_transform = 'x * 10'
+default_transform = 'x * 10'
 
-# routes: load or get shortestPath
-if (load_rdata){
-  stopifnot(file.exists(data[['rdata']]))
-  load(data[['rdata']])
-  stopifnot(exists(c('routes')))
-} else {
-  
-  # normalize cost surface
-  x = (r / cellStats(r,'max'))
-  
-  # ones map for getting linear path
-  r1 = r
-  r1[!is.na(r)] = 1
-  
-  # transformations to apply to species cost resistance raster
-  transforms = c(
-    'x * 0', 'x * 0.1', 'x * 0.5', 'x * 1', 
-    'x * 10', 'x * 100', 'x * 1000', 'x * 10000', 
-    'x^2', '(x*10)^2', '(x*100)^2', 'x^3')
-  
-  routes = list()
-  for (i in 1:length(transforms)){ # i=8
-    
-    # apply transform to raster
-    xt = eval(parse(text=transforms[i]))
-    
-    # calculate shortest path
-    rt = shortestPath(
-      # TODO: think of m_vals as transforms: x * 100, x^2, s
-      geoCorrection(transition(1 / (r1 + xt), mean, directions=8), type="c"), 
-      coordinates(pts_mer)[1,],
-      coordinates(pts_mer)[2,],
-      output='SpatialLines')
-    
-    # input to list with gcs projection, cost and distance
-    routes = append(routes, list(list(
-      transform = transforms[i],
-      route_gcs = spTransform(rt, crs(epsg4326)),
-      cost_x    = sum(unlist(extract(x, rt)), na.rm=T), # sum(extract(x, rt)),
-      dist_km   = SpatialLinesLengths(rt) / 1000,
-      place     = 'British Columbia, Canada')))
-  }
-  
-  # save
-  save(routes, file = data[['rdata']])
-}
+# transformations to apply to species cost resistance raster
+# transforms = c(
+#   'x * 0', 'x * 0.1', 'x * 0.5', 'x * 1', 
+#   'x * 10', 'x * 100', 'x * 1000', 'x * 10000', 
+#   'x^2', '(x*10)^2', '(x*100)^2', 'x^3')
+transforms = c(
+#  'x * 0', 'x * 1', 'x * 10', 'x * 100', '(x*100)^2')
+  'x * 0', 'x * 10', 'x * 100')
 
-# # quick routes update #routes0 = routes
-# for (i in 1:length(routes)){ # i=1
-#   #routes[[i]]$dist_km = routes[[i]]$dist_m / 1000
-#   #routes[[i]]$dist_m <- NULL
-#   #routes[[i]]$place = 'British Columbia, Canada'
-#   routes[[i]]$extent = 'British Columbia, Canada'
-#   routes[[i]]$place = NULL
-# }
-# save(routes, file = data[['rdata']])
+# normalize cost surface
+x = (r / cellStats(r,'max'))
 
-# extract data from routes
-d = data.frame(
-  extent    = sapply(routes, function(z) z$extent),
-  transform = sapply(routes, function(z) z$transform),
-  dist_km = sapply(routes, function(z) z$dist_km),
-  cost_x = sapply(routes, function(z) z$cost_x)) %>%
-  mutate(
-    industry = dist_km - min(dist_km),
-    conservation = cost_x - min(cost_x)) %>%
-  arrange(industry, desc(conservation))
-
-cat_txt_tradeoff = function(transform){
-  txt = with(
-    d[d$transform==transform,],
-    sprintf(paste(
-      '- transformation: %s',
-      '- dist _(km)_: %0.2f',
-      '- cost: %0.2f',
-      '- **industry** _(dist - min(dist))_: %0.2f',
-      '- **conservation** _(cost - min(cost))_: %0.2f',
-      sep='\n'),
-      transform,
-      dist_km,
-      cost_x,
-      industry,
-      conservation)) %>%
-    renderMarkdown(text = .)
-  return(txt)
-}
+# ones map for getting linear path
+r1 = r
+r1[!is.na(r)] = 1

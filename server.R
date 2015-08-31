@@ -1,33 +1,171 @@
 # server ----
 
-#server <- function(input, output, session) {
+# TODO: 
+# - cleanup files, checkin
+# - find nearest valid pixel for xy* before running shortestPath()
+# - zoom to recalculated begin/end extent, update highlighted points on map, see get_bbox
+# - add interactive point, see input$map_click, save CODE as sprintf('%0.4f,%0.4f', lon, lat)
+# - since routes made global and exists(routes), check to/fro of routes by setting as another attr
+
 shinyServer(function(input, output, session) {
 
   # Create a Progress object
   progress <- shiny::Progress$new()
   progress$set(message = "Loading data", value = 0)
   
-#   points <- eventReactive(input$recalc, {
+  # default route begin/end select values
+  sel_beg_now <<- 'SHG'
+  sel_end_now <<- 'KTM'
+  
+  run_routing = function(lonlat1, lonlat2){
+
+    xy1 = spTransform(lonlat1, crs(epsg3857))
+    xy2 = spTransform(lonlat2, crs(epsg3857))
+    
+    progress <- shiny::Progress$new()
+    routes = list()
+    for (i in 1:length(transforms)){ # i=8
+      
+      # progress bar
+      progress$set(message = sprintf('routing transform %d (of %d): %s', i, length(transforms), transforms[i]), value = (i-0.5)/length(transforms))
+      
+      # apply transform to raster
+      xt = eval(parse(text=transforms[i]))
+      
+      # calculate shortest path
+      rt = shortestPath(
+        geoCorrection(transition(1 / (r1 + xt), mean, directions=8), type="c"), 
+        xy1,
+        xy2,
+        output='SpatialLines')
+      
+      # input to list with gcs projection, cost and distance
+      routes = append(routes, list(list(
+        transform = transforms[i],
+        route_gcs = spTransform(rt, crs(epsg4326)),
+        cost_x    = sum(unlist(extract(x, rt)), na.rm=T), # sum(extract(x, rt)),
+        dist_km   = SpatialLinesLengths(rt) / 1000,
+        place     = 'British Columbia, Canada')))
+    }
+    
+    # missing: extent, 
+    d = data.frame(
+      #extent    = sapply(routes, function(z) z$extent),
+      transform = sapply(routes, function(z) z$transform),
+      dist_km   = sapply(routes, function(z) z$dist_km),
+      cost_x    = sapply(routes, function(z) z$cost_x)) %>%
+      mutate(
+        industry     = dist_km - min(dist_km),
+        conservation = cost_x  - min(cost_x)) %>%
+      arrange(industry, desc(conservation))
+    attr(routes, 'd') = d
+    print('global.R run_routing() d attr finished')
+    
+    # save if doesn't exist (eg redoing)
+    rdata = sprintf('%s/data/routes/routes_%s-%s.Rdata', app_dir, input$sel_beg, input$sel_end)
+    if (!file.exists(rdata)){
+      print('global.R run_routing() rdata save')
+      save(routes, file = rdata)
+    }
+    
+    # finish progress
+    progress$close()
+    
+    return(routes)
+  }
+  
+  get_routes = reactive({
+    
+    # make reactive to btn_reroute, otherwise isolate
+    input$btn_reroute
+    
+    print('get_routes()')
+    isolate({
+      
+      rdata = sprintf('%s/data/routes/routes_%s-%s.Rdata', app_dir, input$sel_beg, input$sel_end)
+      if ((!exists('routes') & file.exists(rdata)) | 
+          (input$sel_beg!=sel_beg_now | input$sel_end!=sel_end_now & file.exists(rdata))){
+        
+        # load prerouted
+        print('get_routes(): loading prerouted')
+        load(rdata)
+        stopifnot(exists(c('routes')))
+        routes <<- routes
+        
+      } else if (exists('routes') & input$sel_beg==sel_beg_now & input$sel_end==sel_end_now){
+        
+        # skip since already loaded
+        print('get_routes(): skipping')
+        
+      } else {
+        
+        print('get_routes(): run_routing()')
+        
+        # run routing ----
+        lonlat1 = SpatialPoints(
+          nodes %>%
+            filter(code==input$sel_beg) %>%
+            select(lon, lat) %>%
+            as.data.frame(), crs(epsg4326))
+        lonlat2 = SpatialPoints(
+          nodes %>%
+            filter(code==input$sel_end) %>%
+            select(lon, lat) %>%
+            as.data.frame(), crs(epsg4326))
+        routes <<- run_routing(lonlat1, lonlat2)
+      }
+      
+      updateTextInput(session, 'txt_transform', value = default_transform)
+      
+      # save routing global params
+      sel_beg_now <<- input$sel_beg
+      sel_end_now <<- input$sel_end
+    })
+    return(routes)
+  })
+  
+  txt_tradeoff = reactive({
+    
+    # depends on txt_transform
+    input$txt_transform
+    
+    d = attr(get_routes(), 'd')
+    txt = with(
+      d[d$transform==transform,],
+      sprintf(paste(
+        '- transformation: %s',
+        '- dist _(km)_: %0.2f',
+        '- cost: %0.2f',
+        '- **industry** _(dist - min(dist))_: %0.2f',
+        '- **conservation** _(cost - min(cost))_: %0.2f',
+        sep='\n'),
+        transform,
+        dist_km,
+        cost_x,
+        industry,
+        conservation)) %>%
+      renderMarkdown(text = .)
+    return(txt)
+  })
+
+#   points <- eventReactive(input$btn_reroute, {
 #     # lr: 48.282911, -121.955969 (lon, lng)
 #     # ul: 54.552710, -134.326578
 #     # lon: 55 - 48 = 7
 #     # lng: -121 - -134 = 13
-#     x = c(-134, -121)
-#     y = c(48, 55)
-#     n = 10
-#     cbind(rnorm(n) * diff(x)/2 + mean(x), rnorm(n) * diff(y)/2 + mean(y))
-#   }, ignoreNULL = FALSE)
-#   lns_gcs <- eventReactive(input$recalc, {
-#     get_route(input$bw_adjust)
-#   }, ignoreNULL = FALSE)
-   
-#   get_route <- eventReactive(input$transform, {
-#     routes[[input$transform]][['route_gcs']]
+#     #     x = c(-134, -121)
+#     #     y = c(48, 55)
+#     #     n = 10
+#     #     cbind(rnorm(n) * diff(x)/2 + mean(x), rnorm(n) * diff(y)/2 + mean(y))
+#     isolate({
+#       sprintf('%s to %s', input$sel_beg, input$sel_end)
+#     })
 #   })
   
   # chart ----
   d_hover <- function(x) {
     if(is.null(x)) return(NULL)
+    d = attr(get_routes(), 'd')
     row <- d[d$transform == x$transform, ]
     paste0(names(row), ": ", format(row), collapse = "<br />")
   }
@@ -35,33 +173,29 @@ shinyServer(function(input, output, session) {
   d_click <- function(x) {
     if(is.null(x)) return(NULL)
     
-    # update hidden text to update map, visible text to show details of selected point
+    # update hidden text to update map
     updateTextInput(session, 'txt_transform', value = x$transform)
-    shinyjs::text(id = "txt_tradeoff", text = cat_txt_tradeoff(x$transform))
-    
-    # highlight selected point
+
+    # return values of selected transform
+    d = attr(get_routes(), 'd')
     i <- which(d$transform == x$transform)
-    isolate({
-      values$stroke <- rep(pt_cols[['off']], nrow(d))
-      values$stroke[i] <- pt_cols[['on']]})
-    
-    # return popup of values in HTML
-    row <- d[d$transform == x$transform, ]
-    paste0(names(row), ": ", format(row), collapse = "<br />")
+    paste0(names(d[i,]), ": ", format(d[i,]), collapse = "<br />")
   }
   
-  # initialize points
-  #pt_cols = c(on='blue', off='slategray')
+  # point colors for tradeoff plot
   pt_cols = c(on='blue', off='slategray')
-  d_stroke = rep(pt_cols[['off']], nrow(d))
-  d_stroke[d$transform == d_transform] = pt_cols[['on']]
-  values <- reactiveValues(stroke=d_stroke) # values = data.frame(stroke=d_stroke)
   
+  # ggvis tradeoff chart
   d_vis <- reactive({
+    d = attr(get_routes(), 'd')
+    d_stroke = rep(pt_cols[['off']], nrow(d))
+    d_stroke[d$transform == input$txt_transform] = pt_cols[['on']]
+    vals <- reactiveValues(stroke=d_stroke)
+    
     d %>%
       ggvis(~conservation, ~industry, key := ~transform) %>% # 
       layer_paths(stroke := 'slategray') %>% 
-      layer_points(stroke := ~values$stroke, strokeWidth := 3) %>% # 
+      layer_points(stroke := ~vals$stroke, strokeWidth := 3) %>% # 
       scale_numeric('x', reverse=T) %>%
       scale_numeric('y', reverse=T) %>% 
       add_tooltip(d_hover, 'hover') %>% 
@@ -74,8 +208,6 @@ shinyServer(function(input, output, session) {
   })
   d_vis %>% bind_shiny("ggvis") 
 
-  # TODO: add shinyjs::text
-  
 #   # table ----
 #   output$dt_tbl = DT::renderDataTable({
 #     datatable(d, selection='single', filter='none', options = list(
@@ -102,36 +234,37 @@ shinyServer(function(input, output, session) {
   # map ----
   get_bbox <- reactive({
     # if have 2 or more points for selected extent
-    if (nrow(filter(pts, extent == input$sel_extent)) >= 2){
-      # return bbox of points
-      pts %>% 
-        as.data.frame() %>%
-        filter(extent == input$sel_extent) %>%
-        #filter(extent == 'British Columbia, Canada') %>%
-        SpatialPointsDataFrame(
-          data=., coords = .[,c('lon','lat')], proj4string = CRS(epsg4326)) %>%
-        extent() %>%
-        c(.@xmin, .@ymin, .@xmax, .@ymax) %>%
-        .[-1] %>% unlist() %>%
-        return()
-    } else {
+#     if (nrow(filter(pts, extent == input$sel_extent)) >= 2){
+#       # return bbox of points
+#       pts %>% 
+#         as.data.frame() %>%
+#         filter(extent == input$sel_extent) %>%
+#         #filter(extent == 'British Columbia, Canada') %>%
+#         SpatialPointsDataFrame(
+#           data=., coords = .[,c('lon','lat')], proj4string = CRS(epsg4326)) %>%
+#         extent() %>%
+#         c(.@xmin, .@ymin, .@xmax, .@ymax) %>%
+#         .[-1] %>% unlist() %>%
+#         return()
+#     } else {
       # return bbox of extent
       extents %>%
         filter(code == input$sel_extent) %>%
         select(lon_min, lat_min, lon_max, lat_max) %>%
         as.numeric() %>%
         return()
-    }
+    # }
   })
 
   x = (r / cellStats(r,'max'))
   x_rng = c(cellStats(x,'min'), cellStats(x,'max'))
   
-  
+  # progress bar
   progress$set(message = "Loading map", value = 0.3)
   # TODO: move rendering of spp_ply out of main map so update overlay like route 
   #       and rm warning "Attempting to set progress, but progress already closed." when selecting new spp
-  output$mymap <- renderLeaflet({
+  output$map <- renderLeaflet({
+    d = attr(get_routes(), 'd')
     b = get_bbox()
     sp_code = input$sel_spp #sp_code = 'HP'
     sp_fld  = ifelse(
@@ -203,24 +336,47 @@ shinyServer(function(input, output, session) {
       fitBounds(b[1], b[2], b[3], b[4])
   })
   
-  #observeEvent(input$map1_marker_click, {
-  observeEvent(input$txt_transform, {
+  # When map is clicked, show a popup, eventually add new points
+  observe({
+    
+    leafletProxy('map') # %>% clearPopups()
+    #event <- input$map_shape_click
+    click <- input$map_click
+    
+    if (is.null(click)) return()
+    
+    isolate({
+      leafletProxy('map') %>% 
+        addPopups(click$lng, click$lat, 
+                  sprintf('map_shape_click: %0.3f, %0.3f', click$lng, click$lat), 
+                  layerId = 'click')
+    })
+  })
+  
+  
+  
+  # update route
+  observeEvent({
+    input$txt_transform
+    get_routes()}, {
+    # TODO: make reactive when using new route, even if same value of input$txt_transform
 
     # progress bar
-    if (!exists('progress')){
-      progress <- shiny::Progress$new()
-    }
-    progress$set(message = "Adding route", value = 0.6)
-    
-    
+    progress <- shiny::Progress$new()
+    progress$set(message = "Getting route", value = 0.6)
+  
     # add least cost path
-    i = which(sapply(routes, function(z) z$transform) == input$txt_transform)
-    leafletProxy('mymap') %>%
+    i = which(sapply(get_routes(), function(z) z$transform) == input$txt_transform)
+    progress$set(message=sprintf('Getting route i=%d', i), value = 0.65)
+    d = attr(get_routes(), 'd')
+    
+    progress$set(message = "Mapping route", value = 0.7)
+    leafletProxy('map') %>%
       removeShape(c('route')) %>% 
-      addPolylines(data = routes[[i]][['route_gcs']], layerId='route', group='Route', color='blue') # , color='purple', weight=3)
+      addPolylines(data = get_routes()[[i]][['route_gcs']], layerId='route', group='Route', color='blue') # , color='purple', weight=3)
     
     # progress bar
-    progress$close()    
+    progress$close()   
   })
     
   
@@ -241,6 +397,8 @@ shinyServer(function(input, output, session) {
     
   })
   
+  # close initial progress bar
+  progress$close()
 })
 
 #shinyApp(ui, server)

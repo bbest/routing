@@ -35,7 +35,9 @@ shinyUI(fluidPage(
             c('Oil Tanker'='rt_oil','Shipping Tanker'='rt_ship','Cruise Ship'='rt_cruise')),
           hidden(helpText(
             id='hlp_industry', 
-            'Eventually these industry profiles will enable customized species responses depending on types of impact.'))),
+            'Eventually these industry profiles will enable customized species responses depending on types of impact.')),
+          br(),
+          actionButton('btn_reroute', 'Reroute')),
         column(
           3, 
           selectInput(
@@ -61,26 +63,26 @@ shinyUI(fluidPage(
             'sel_beg', 'Begin:',
             nodes  %$% 
               split(.[,c('name','code')], group) %>%
-              lapply(function(x) setNames(x$code, x$name))),
+              lapply(function(x) setNames(x$code, x$name)),
+            selected='SHG'),
           selectInput(
             'sel_end', 'End:',
             nodes  %$% 
               split(.[,c('name','code')], group) %>%
-              lapply(function(x) setNames(x$code, x$name))))),
+              lapply(function(x) setNames(x$code, x$name)),
+            selected='KTM'))),
       
       fluidRow(
         column(
           4,  # 
-          hidden(textInput('txt_transform', 'selected transform', value = d_transform)),
+          hidden(textInput('txt_transform', 'selected transform', value = default_transform)),
           div(
             style = "height:400px; background-color:#f5f5f5",
             ggvisOutput("ggvis"))),
         
         column(
           8,
-          leafletOutput("mymap", height='400px') #,
-          #p(),
-          #actionButton("recalc", "Reroute"))
+          leafletOutput('map', height='400px')
         )),
       
       hr(),
@@ -91,7 +93,8 @@ shinyUI(fluidPage(
           #DT::dataTableOutput('dt_tbl'))
           p(
             "Tradeoff selected: ",
-            div(id = 'txt_tradeoff', HTML(cat_txt_tradeoff(d_transform)))
+            #div(id = 'txt_tradeoff', HTML(cat_txt_tradeoff(default_transform)))
+            htmlOutput('txt_tradeoff')
           )),
         column(
           8,
