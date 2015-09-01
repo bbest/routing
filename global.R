@@ -196,8 +196,8 @@ spp_ply@data = spp_ply@data %>%
 #   'x * 10', 'x * 100', 'x * 1000', 'x * 10000', 
 #   'x^2', '(x*10)^2', '(x*100)^2', 'x^3')
 transforms = c(
-#  'x * 0', 'x * 1', 'x * 10', 'x * 100', '(x*100)^2')
-  'x * 0', 'x * 10', 'x * 100')
+  'x * 0', 'x * 1', 'x * 10', 'x * 100', 'x * 1000', '(x*100)^2')
+  #'x * 0', 'x * 10', 'x * 100')
 
 # normalize cost surface
 x = (r / cellStats(r,'max'))
@@ -205,3 +205,111 @@ x = (r / cellStats(r,'max'))
 # ones map for getting linear path
 r1 = r
 r1[!is.na(r)] = 1
+
+
+# run standalone ----
+
+run_routing_standalone = function(lonlat1, lonlat2){
+  
+  # project original points to web mercator
+  xy = c(coordinates(lonlat1), coordinates(lonlat2)) %>%
+    matrix(ncol=2, byrow=T) %>%
+    SpatialPoints(crs(epsg4326)) %>%
+    spTransform(crs(epsg3857))
+  
+  # update to nearest non-NA points on raster for shortestPath to work
+  xy = c(
+    coordinates(r)[which.min(mask(distanceFromPoints(r, xy[1]), r)),],
+    coordinates(r)[which.min(mask(distanceFromPoints(r, xy[2]), r)),]) %>%
+    matrix(ncol=2, byrow=T) %>%
+    SpatialPoints(crs(epsg3857))
+  
+  routes = list()
+  for (i in 1:length(transforms)){ # i=8
+    
+    # progress bar
+    cat(sprintf('  routing transform %d (of %d): %s\n', i, length(transforms), transforms[i]))
+    
+    # apply transform to raster
+    xt = eval(parse(text=transforms[i]))
+    
+    # calculate shortest path
+    rt = shortestPath(
+      geoCorrection(transition(1 / (r1 + xt), mean, directions=8), type="c"), 
+      xy[1],
+      xy[2],
+      output='SpatialLines')
+    
+    # input to list with gcs projection, cost and distance
+    routes = append(routes, list(list(
+      transform = transforms[i],
+      route_gcs = spTransform(rt, crs(epsg4326)),
+      cost_x    = sum(unlist(extract(x, rt)), na.rm=T), # sum(extract(x, rt)),
+      dist_km   = SpatialLinesLengths(rt) / 1000,
+      place     = 'British Columbia, Canada')))
+  }
+  
+  # attribute begin/end points, original and on valid raster
+  lonlat = spTransform(xy, crs(epsg4326))
+  attr(routes, 'pts') = lonlat
+  attr(routes, 'pt_codes') = c(beg,end)
+  
+  # attribute data.frame of route values
+  d = data.frame(
+    transform = sapply(routes, function(z) z$transform),
+    dist_km   = sapply(routes, function(z) z$dist_km),
+    cost_x    = sapply(routes, function(z) z$cost_x)) %>%
+    mutate(
+      industry     = dist_km - min(dist_km),
+      conservation = cost_x  - min(cost_x)) %>%
+    arrange(industry, desc(conservation))
+  attr(routes, 'd') = d
+  
+  # save if doesn't exist (eg redoing)
+  rdata = sprintf('%s/data/routes/routes_%s_to_%s.Rdata', app_dir, beg, end)
+  if (!file.exists(rdata)){
+    save(routes, file = rdata)
+  }
+  
+  return(routes)
+}
+
+# route between all ports / oceanic access points
+if (F){
+  n = length(nodes$code)
+  m = matrix(NA, nrow=n, ncol=n, dimnames=list(beg=sort(nodes$code), end=sort(nodes$code)))
+  m[upper.tri(m)] = 1
+  n_k = sum(!is.na(m))
+  k = 0
+  for (i in 1:nrow(m)){
+    for (j in 1:ncol(m)){
+      if (!is.na(m[i,j])){
+        k = k + 1
+        beg = rownames(m)[i]
+        end = colnames(m)[j]
+        cat(sprintf('%02d/%d: %s -> %s\n', k, n_k, beg, end))
+  
+        rdata     = sprintf('%s/data/routes/routes_%s_to_%s.Rdata', app_dir, beg, end)
+        rdata_rev = sprintf('%s/data/routes/routes_%s_to_%s.Rdata', app_dir, end, beg)
+        if (file.exists(rdata_rev) | file.exists(rdata)){
+          cat('  Rdata exists\n')
+        } else {
+
+          lonlat1 = SpatialPoints(
+            nodes %>%
+              filter(code==beg) %>%
+              select(lon, lat) %>%
+              as.data.frame(), crs(epsg4326))
+          
+          lonlat2 = SpatialPoints(
+            nodes %>%
+              filter(code==end) %>%
+              select(lon, lat) %>%
+              as.data.frame(), crs(epsg4326))
+          
+          run_routing_standalone(lonlat1, lonlat2)
+        }
+      }
+    }
+  }
+}

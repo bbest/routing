@@ -21,22 +21,12 @@ shinyUI(fluidPage(
       "Routing", icon = icon('road'),
       
       fluidRow(
-        helpText(HTML(renderMarkdown(text="**Instructions.** Click on a point in the tradeoff chart below to display the mapped route to the right and values below. 
+        helpText(HTML(renderMarkdown(text="**Instructions.** Click on a point in the tradeoff chart below to display the mapped route to the left and values below. 
                                      Map is zoomable/pannable and begin/end points changable.")))),
       
       hr(),
       
       fluidRow(
-        column(
-          6,
-          selectInput(
-            'sel_industry', 'Industry Profile:',
-            c('Oil Tanker'='rt_oil','Shipping Tanker'='rt_ship','Cruise Ship'='rt_cruise')),
-          hidden(helpText(
-            id='hlp_industry', 
-            'Eventually these industry profiles will enable customized species responses depending on types of impact.')),
-          br(),
-          actionButton('btn_reroute', 'Reroute')),
         column(
           3, 
           selectInput(
@@ -72,31 +62,33 @@ shinyUI(fluidPage(
               split(.[,c('name','code')], group) %>%
               lapply(function(x) setNames(x$code, x$name)),
             selected=default_end),
-          hidden(textInput('txt_end', 'point end code', value=default_end)))),
+          hidden(textInput('txt_end', 'point end code', value=default_end))),
+        column(
+          2, br(), br(), br(),
+          actionButton('btn_reroute', 'Reroute')),
+        column(
+          4, br(), br(),
+          selectInput(
+            'sel_industry', 'Industry Profile:',
+            c('Oil Tanker'='rt_oil','Shipping Tanker'='rt_ship','Cruise Ship'='rt_cruise')),
+          hidden(helpText(
+            id='hlp_industry', 
+            'Eventually these industry profiles will enable customized species responses depending on types of impact.')))),
       
       fluidRow(
+        column(
+          8,
+          leafletOutput('map', height='400px')),
         column(
           4,  # 
           hidden(textInput('txt_transform', 'selected transform', value = default_transform)),
           div(
             style = "height:400px; background-color:#f5f5f5",
-            ggvisOutput("ggvis"))),
-        
-        column(
-          8,
-          leafletOutput('map', height='400px')
-        )),
+            ggvisOutput("ggvis")))),
       
       hr(),
       
       fluidRow(
-        column(
-          4,
-          #DT::dataTableOutput('dt_tbl'))
-          p(
-            "Tradeoff selected: ",
-            uiOutput('txt_tradeoff')
-          )),
         column(
           8,
           helpText(HTML(renderMarkdown(
@@ -106,15 +98,18 @@ shinyUI(fluidPage(
             the reference point (_min(dist)_) to which other routes are compared. Other paths are calculated
             by applying transformations to the conservation risk surface, which is calculated as the cumulative species score 
             weighted by extinction risk. The summation of conservation risk values traversed by the path determines
-            the conservation score. The reference point (_min(cost)_) is subtracted from all values.'))))),
+            the conservation score. The reference point (_min(cost)_) is subtracted from all values.')))),
+        column(
+          4,
+          #DT::dataTableOutput('dt_tbl'))
+          p(
+            "Tradeoff selected: ",
+            uiOutput('txt_tradeoff')
+          ))),
       
       hr(),
       
       fluidRow(
-        column(
-          4,
-          # speceis weight plot
-          plotOutput('plt_spp_weights')),
         column(
           8,
           helpText(HTML(renderMarkdown(
@@ -130,7 +125,11 @@ shinyUI(fluidPage(
             $$
             z_{i,s} = \\frac{ x_{i,s} - \\mu_s }{ \\sigma_s } \\\\
             Z_i = \\frac{ \\sum_{s=1}^{n} z_{i,s} * w_s }{ n }
-            $$"))))),
+            $$"))),
+        column(
+          4,
+          # speceis weight plot
+          plotOutput('plt_spp_weights')))),
     
     tabPanel(
       "Siting", icon = icon('map-marker'),

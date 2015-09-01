@@ -1,9 +1,8 @@
 # server ----
 
 # TODO: 
+# - update highlighted points on map, legend for point types (ports, oceanic access, NEW)
 # - update sel_beg/end with nodes now having NEW_*
-# - Tradeoff selected, txt_transform, not showing?
-# - zoom to recalculated begin/end extent, update highlighted points on map, see get_bbox
 # - since routes made global and exists(routes), check to/fro of routes by setting as another attr
 # - add to port popup option to make beg/end pt of route
 
@@ -60,10 +59,8 @@ shinyServer(function(input, output, session) {
     
     # attribute begin/end points, original and on valid raster
     lonlat = spTransform(xy, crs(epsg4326))
-    attr(routes, 'pt_beg') = lonlat[1]
-    attr(routes, 'pt_end') = lonlat[2]
-    attr(routes, 'nm_beg') = input$txt_beg
-    attr(routes, 'nm_end') = input$txt_end
+    attr(routes, 'pts') = lonlat
+    attr(routes, 'pt_codes') = c(input$txt_beg,input$txt_end)
     
     # attribute data.frame of route values
     d = data.frame(
@@ -75,12 +72,10 @@ shinyServer(function(input, output, session) {
         conservation = cost_x  - min(cost_x)) %>%
       arrange(industry, desc(conservation))
     attr(routes, 'd') = d
-    print('global.R run_routing() d attr finished')
     
     # save if doesn't exist (eg redoing)
     rdata = sprintf('%s/data/routes/routes_%s_to_%s.Rdata', app_dir, input$txt_beg, input$txt_end)
     if (!file.exists(rdata)){
-      print('global.R run_routing() rdata save')
       save(routes, file = rdata)
     }
     
@@ -116,7 +111,12 @@ shinyServer(function(input, output, session) {
         }
       }
       
-      rdata = sprintf('%s/data/routes/routes_%s_to_%s.Rdata', app_dir, input$txt_beg, input$txt_end)
+      rdata     = sprintf('%s/data/routes/routes_%s_to_%s.Rdata', app_dir, input$txt_beg, input$txt_end)
+      rdata_rev = sprintf('%s/data/routes/routes_%s_to_%s.Rdata', app_dir, input$txt_end, input$txt_beg)
+      if (file.exists(rdata_rev) & !file.exists(rdata)){
+        rdata = rdata_rev
+      }
+      
       if ((!exists('routes') & file.exists(rdata)) | 
           ((input$txt_beg!=txt_beg_now | input$txt_end!=txt_end_now) & file.exists(rdata))){
         
@@ -157,34 +157,6 @@ shinyServer(function(input, output, session) {
     })
     return(routes)
   })
-  
-  #txt_tradeoff = reactive({
-#   observe({
-#     
-#     # depends on txt_transform
-#     input$txt_transform
-#     print('txt_tradeoff')
-#     
-#     d = attr(get_routes(), 'd')
-#     txt = with(
-#       d[d$transform==input$txt_transform,],
-#       sprintf(paste(
-#         '- transformation: %s',
-#         '- dist _(km)_: %0.2f',
-#         '- cost: %0.2f',
-#         '- **industry** _(dist - min(dist))_: %0.2f',
-#         '- **conservation** _(cost - min(cost))_: %0.2f',
-#         sep='\n'),
-#         transform,
-#         dist_km,
-#         cost_x,
-#         industry,
-#         conservation)) %>%
-#       renderMarkdown(text = .)
-#     
-#     #return(txt)
-#     updateTextInput(session, 'txt_tradeoff', value = txt)
-#   })
 
   observe({
     updateTextInput(session, 'txt_beg', value = input$sel_beg)
@@ -280,27 +252,19 @@ shinyServer(function(input, output, session) {
 
   # map ----
   get_bbox <- reactive({
-    # if have 2 or more points for selected extent
-#     if (nrow(filter(pts, extent == input$sel_extent)) >= 2){
-#       # return bbox of points
-#       pts %>% 
-#         as.data.frame() %>%
-#         filter(extent == input$sel_extent) %>%
-#         #filter(extent == 'British Columbia, Canada') %>%
-#         SpatialPointsDataFrame(
-#           data=., coords = .[,c('lon','lat')], proj4string = CRS(epsg4326)) %>%
-#         extent() %>%
-#         c(.@xmin, .@ymin, .@xmax, .@ymax) %>%
-#         .[-1] %>% unlist() %>%
-#         return()
-#     } else {
+    if ('pts' %in% names(attributes(get_routes()))){
+      # if pts in current route
+      attr(get_routes(), 'pts') %>%
+        extent() %>%
+        c(.@xmin, .@ymin, .@xmax, .@ymax) %>%
+        .[-1] %>% unlist()
+    } else {
       # return bbox of extent
       extents %>%
         filter(code == input$sel_extent) %>%
         select(lon_min, lat_min, lon_max, lat_max) %>%
-        as.numeric() %>%
-        return()
-    # }
+        as.numeric()
+    }
   })
 
   x = (r / cellStats(r,'max'))
