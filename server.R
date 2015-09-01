@@ -1,8 +1,9 @@
 # server ----
 
 # TODO: 
+# - update sel_beg/end with nodes now having NEW_*
+# - Tradeoff selected, txt_transform, not showing?
 # - zoom to recalculated begin/end extent, update highlighted points on map, see get_bbox
-# - add interactive point, see input$map_click, save CODE as sprintf('%0.4f,%0.4f', lon, lat)
 # - since routes made global and exists(routes), check to/fro of routes by setting as another attr
 # - add to port popup option to make beg/end pt of route
 
@@ -13,14 +14,11 @@ shinyServer(function(input, output, session) {
   progress$set(message = "Loading data", value = 0)
   
   # default route begin/end select values
-  sel_beg_now <<- 'SHG'
-  sel_end_now <<- 'KTM'
+  txt_beg_now <<- default_beg
+  txt_end_now <<- default_end
   
   run_routing = function(lonlat1, lonlat2){
 
-#     xy1 = spTransform(lonlat1, crs(epsg3857))
-#     xy2 = spTransform(lonlat2, crs(epsg3857))
-    
     # project original points to web mercator
     xy = c(coordinates(lonlat1), coordinates(lonlat2)) %>%
       matrix(ncol=2, byrow=T) %>%
@@ -64,8 +62,8 @@ shinyServer(function(input, output, session) {
     lonlat = spTransform(xy, crs(epsg4326))
     attr(routes, 'pt_beg') = lonlat[1]
     attr(routes, 'pt_end') = lonlat[2]
-    attr(routes, 'nm_beg') = input$sel_beg
-    attr(routes, 'nm_end') = input$sel_end
+    attr(routes, 'nm_beg') = input$txt_beg
+    attr(routes, 'nm_end') = input$txt_end
     
     # attribute data.frame of route values
     d = data.frame(
@@ -80,7 +78,7 @@ shinyServer(function(input, output, session) {
     print('global.R run_routing() d attr finished')
     
     # save if doesn't exist (eg redoing)
-    rdata = sprintf('%s/data/routes/routes_%s-%s.Rdata', app_dir, input$sel_beg, input$sel_end)
+    rdata = sprintf('%s/data/routes/routes_%s_to_%s.Rdata', app_dir, input$txt_beg, input$txt_end)
     if (!file.exists(rdata)){
       print('global.R run_routing() rdata save')
       save(routes, file = rdata)
@@ -100,9 +98,27 @@ shinyServer(function(input, output, session) {
     print('get_routes()')
     isolate({
       
-      rdata = sprintf('%s/data/routes/routes_%s-%s.Rdata', app_dir, input$sel_beg, input$sel_end)
+      if (input$txt_beg=='NEW'| input$txt_beg=='NEW'){
+        info('You must first click on the map to set the new begin or start point.')
+        return(routes)
+      }
+      
+      for (v in c(input$txt_beg, input$txt_end)){
+        if (str_sub(v,1,3)=='NEW' & !v %in% nodes$code){
+          nodes <- bind_rows(
+            data_frame(
+              group = 'New Point',
+              name  = v,
+              code  = v,
+              lon   = v %>% str_replace('NEW_(.+),(.+)', '\\1') %>% as.numeric(),
+              lat   = v %>% str_replace('NEW_(.+),(.+)', '\\2') %>% as.numeric()),
+            nodes)
+        }
+      }
+      
+      rdata = sprintf('%s/data/routes/routes_%s_to_%s.Rdata', app_dir, input$txt_beg, input$txt_end)
       if ((!exists('routes') & file.exists(rdata)) | 
-          (input$sel_beg!=sel_beg_now | input$sel_end!=sel_end_now & file.exists(rdata))){
+          ((input$txt_beg!=txt_beg_now | input$txt_end!=txt_end_now) & file.exists(rdata))){
         
         # load prerouted
         print('get_routes(): loading prerouted')
@@ -110,7 +126,7 @@ shinyServer(function(input, output, session) {
         stopifnot(exists(c('routes')))
         routes <<- routes
         
-      } else if (exists('routes') & input$sel_beg==sel_beg_now & input$sel_end==sel_end_now){
+      } else if (exists('routes') & input$txt_beg==txt_beg_now & input$txt_end==txt_end_now){
         
         # skip since already loaded
         print('get_routes(): skipping')
@@ -122,12 +138,12 @@ shinyServer(function(input, output, session) {
         # run routing ----
         lonlat1 = SpatialPoints(
           nodes %>%
-            filter(code==input$sel_beg) %>%
+            filter(code==input$txt_beg) %>%
             select(lon, lat) %>%
             as.data.frame(), crs(epsg4326))
         lonlat2 = SpatialPoints(
           nodes %>%
-            filter(code==input$sel_end) %>%
+            filter(code==input$txt_end) %>%
             select(lon, lat) %>%
             as.data.frame(), crs(epsg4326))
         routes <<- run_routing(lonlat1, lonlat2)
@@ -136,8 +152,8 @@ shinyServer(function(input, output, session) {
       updateTextInput(session, 'txt_transform', value = default_transform)
       
       # save routing global params
-      sel_beg_now <<- input$sel_beg
-      sel_end_now <<- input$sel_end
+      txt_beg_now <<- input$txt_beg
+      txt_end_now <<- input$txt_end
     })
     return(routes)
   })
@@ -166,6 +182,15 @@ shinyServer(function(input, output, session) {
     return(txt)
   })
 
+  observe({
+    updateTextInput(session, 'txt_beg', value = input$sel_beg)
+    updateTextInput(session, 'txt_end', value = input$sel_end)
+    isolate({
+      if (input$sel_beg=='NEW'){
+        #info('Click on map to create routing point.')
+      }  
+    })
+  })
 #   points <- eventReactive(input$btn_reroute, {
 #     # lr: 48.282911, -121.955969 (lon, lng)
 #     # ul: 54.552710, -134.326578
@@ -364,10 +389,23 @@ shinyServer(function(input, output, session) {
     if (is.null(click)) return()
     
     isolate({
-      leafletProxy('map') %>% 
-        addPopups(click$lng, click$lat, 
-                  sprintf('map_shape_click: %0.3f, %0.3f', click$lng, click$lat), 
-                  layerId = 'click')
+      # new begin
+      if (input$txt_beg=='NEW'){
+        leafletProxy('map') %>% 
+          addPopups(click$lng, click$lat, 
+                    sprintf('New Begin: %0.3f, %0.3f', click$lng, click$lat), 
+                    layerId = 'click')
+        updateTextInput(session, 'txt_beg', value = sprintf('NEW_%0.3f,%0.3f', click$lng, click$lat))
+      }
+      
+      # new end
+      if (input$txt_end=='NEW'){
+        leafletProxy('map') %>% 
+          addPopups(click$lng, click$lat, 
+                    sprintf('New End: %0.3f, %0.3f', click$lng, click$lat), 
+                    layerId = 'click')
+        updateTextInput(session, 'txt_end', value = sprintf('NEW_%0.3f,%0.3f', click$lng, click$lat))
+      }
     })
   })
   

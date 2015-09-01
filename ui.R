@@ -22,8 +22,7 @@ shinyUI(fluidPage(
       
       fluidRow(
         helpText(HTML(renderMarkdown(text="**Instructions.** Click on a point in the tradeoff chart below to display the mapped route to the right and values below. 
-                                     Map is zoomable/pannable and start/end points clickable.
-                                     Eventually you'll be able to create arbitrary start/end points for tradeoff analysis of conservation routing.")))),
+                                     Map is zoomable/pannable and begin/end points changable.")))),
       
       hr(),
       
@@ -64,13 +63,16 @@ shinyUI(fluidPage(
             nodes  %$% 
               split(.[,c('name','code')], group) %>%
               lapply(function(x) setNames(x$code, x$name)),
-            selected='SHG'),
+            selected=default_beg),
+          hidden(textInput('txt_beg', 'point begin code', value=default_beg)),
+          
           selectInput(
             'sel_end', 'End:',
             nodes  %$% 
               split(.[,c('name','code')], group) %>%
               lapply(function(x) setNames(x$code, x$name)),
-            selected='KTM'))),
+            selected=default_end),
+          hidden(textInput('txt_end', 'point end code', value=default_end)))),
       
       fluidRow(
         column(

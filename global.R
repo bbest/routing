@@ -67,10 +67,15 @@ spp_list = list(
 v = utils::stack(spp_list)
 spp_names = setNames(object=row.names(v), nm=v$values)
 
+# default transform for d data.frame
+default_transform = 'x * 10'
+default_beg = 'SHG'
+default_end = 'KTM'
+
 # paths
 app_dir        = '~/github/consmap'
 data = c(
-  rdata           = 'routes/routes_SHG-KTM.Rdata',       # '~/Google Drive/dissertation/data/routing/demo.Rdata'
+  rdata           = sprintf('routes/routes_%s_to_%s.Rdata', default_beg, default_end), # '~/Google Drive/dissertation/data/routing/demo.Rdata'
   grd             = 'v72zw_epsg3857.grd', # '~/Google Drive/dissertation/data/bc/v72zw_epsg3857.grd'
   extents_csv     = 'extents.csv',
   points_csv      = 'points.csv',
@@ -176,9 +181,6 @@ spp_ply@data = data.frame(spp_ply@data, x[match(spp_ply@data[,'CellID'], x[,'Cel
 # shift to all positive for use as cost surface
 spp_ply@data = spp_ply@data %>%
   mutate(ALL_c = ALL_z - min(ALL_z, na.rm=T))
-
-# default transform for d data.frame
-default_transform = 'x * 10'
 
 # transformations to apply to species cost resistance raster
 # transforms = c(
