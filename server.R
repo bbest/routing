@@ -1,6 +1,10 @@
 # server ----
 
 # TODO: 
+# - load US east coast (EC) species model data
+# - add EC+GOM ports
+# - add EC ship slowing zones
+# - download waypoints / shp of route
 # - update highlighted points on map, legend for point types (ports, oceanic access, NEW)
 # - update sel_beg/end with nodes now having NEW_*
 # - since routes made global and exists(routes), check to/fro of routes by setting as another attr
