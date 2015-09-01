@@ -78,7 +78,7 @@ if (Sys.info()[['sysname']] == 'Darwin'){
   app_dir = '~/github/consmap'
 } else if (Sys.info()[['sysname']] == 'Linux'){
   # on shiny.env Linux
-  app_dir = '/shiny/bbest'
+  app_dir = '/shiny/bbest/consmap'
 }
 
 data = c(
