@@ -276,8 +276,9 @@ run_routing_standalone = function(lonlat1, lonlat2){
 
 # route between all ports / oceanic access points
 if (F){
-  n = length(nodes$code)
-  m = matrix(NA, nrow=n, ncol=n, dimnames=list(beg=sort(nodes$code), end=sort(nodes$code)))
+  codes = sort(setdiff(nodes$code, 'NEW'))
+  n = length(codes)
+  m = matrix(NA, nrow=n, ncol=n, dimnames=list(beg=codes, end=codes))
   m[upper.tri(m)] = 1
   n_k = sum(!is.na(m))
   k = 0
