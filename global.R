@@ -73,7 +73,14 @@ default_beg = 'SHG'
 default_end = 'KTM'
 
 # paths
-app_dir        = '~/github/consmap'
+if (Sys.info()[['sysname']] == 'Darwin'){
+  # on bbest's Mac
+  app_dir = '~/github/consmap'
+} else if (Sys.info()[['sysname']] == 'Linux'){
+  # on shiny.env Linux
+  app_dir = '/shiny/bbest'
+}
+
 data = c(
   rdata           = sprintf('routes/routes_%s_to_%s.Rdata', default_beg, default_end), # '~/Google Drive/dissertation/data/routing/demo.Rdata'
   grd             = 'v72zw_epsg3857.grd', # '~/Google Drive/dissertation/data/bc/v72zw_epsg3857.grd'
