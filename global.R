@@ -46,6 +46,7 @@ library(ggplot2)
 
 # Immediately enter the browser when an error occurs
 options(error = NULL) # error = NULL|browser|utils::recover
+#options(shiny.trace=TRUE)
 
 # params
 epsg4326 <- "+proj=longlat +datum=WGS84 +no_defs"

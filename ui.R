@@ -95,8 +95,7 @@ shinyUI(fluidPage(
           #DT::dataTableOutput('dt_tbl'))
           p(
             "Tradeoff selected: ",
-            #div(id = 'txt_tradeoff', HTML(cat_txt_tradeoff(default_transform)))
-            htmlOutput('txt_tradeoff')
+            uiOutput('txt_tradeoff')
           )),
         column(
           8,

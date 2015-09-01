@@ -158,29 +158,33 @@ shinyServer(function(input, output, session) {
     return(routes)
   })
   
-  txt_tradeoff = reactive({
-    
-    # depends on txt_transform
-    input$txt_transform
-    
-    d = attr(get_routes(), 'd')
-    txt = with(
-      d[d$transform==transform,],
-      sprintf(paste(
-        '- transformation: %s',
-        '- dist _(km)_: %0.2f',
-        '- cost: %0.2f',
-        '- **industry** _(dist - min(dist))_: %0.2f',
-        '- **conservation** _(cost - min(cost))_: %0.2f',
-        sep='\n'),
-        transform,
-        dist_km,
-        cost_x,
-        industry,
-        conservation)) %>%
-      renderMarkdown(text = .)
-    return(txt)
-  })
+  #txt_tradeoff = reactive({
+#   observe({
+#     
+#     # depends on txt_transform
+#     input$txt_transform
+#     print('txt_tradeoff')
+#     
+#     d = attr(get_routes(), 'd')
+#     txt = with(
+#       d[d$transform==input$txt_transform,],
+#       sprintf(paste(
+#         '- transformation: %s',
+#         '- dist _(km)_: %0.2f',
+#         '- cost: %0.2f',
+#         '- **industry** _(dist - min(dist))_: %0.2f',
+#         '- **conservation** _(cost - min(cost))_: %0.2f',
+#         sep='\n'),
+#         transform,
+#         dist_km,
+#         cost_x,
+#         industry,
+#         conservation)) %>%
+#       renderMarkdown(text = .)
+#     
+#     #return(txt)
+#     updateTextInput(session, 'txt_tradeoff', value = txt)
+#   })
 
   observe({
     updateTextInput(session, 'txt_beg', value = input$sel_beg)
@@ -430,11 +434,31 @@ shinyServer(function(input, output, session) {
     leafletProxy('map') %>%
       removeShape(c('route')) %>% 
       addPolylines(data = get_routes()[[i]][['route_gcs']], layerId='route', group='Route', color='blue') # , color='purple', weight=3)
-    
+
     # progress bar
     progress$close()   
   })
-    
+
+  # update txt_tradeoff
+  output$txt_tradeoff = renderUI({
+    d = attr(get_routes(), 'd')
+    with(
+      d[d$transform==input$txt_transform,],
+      sprintf(paste(
+        '- transformation: %s',
+        '- dist _(km)_: %0.2f',
+        '- cost: %0.2f',
+        '- **industry** _(dist - min(dist))_: %0.2f',
+        '- **conservation** _(cost - min(cost))_: %0.2f',
+        sep='\n'),
+        transform,
+        dist_km,
+        cost_x,
+        industry,
+        conservation)) %>%
+      renderMarkdown(text = .) %>% 
+      HTML()
+  })
   
   observeEvent(input$sel_industry, {
     if (input$sel_industry != 'rt_oil'){
