@@ -64,13 +64,16 @@ shinyUI(fluidPage(
             nodes  %$% 
               split(.[,c('name','code')], group) %>%
               lapply(function(x) setNames(x$code, x$name)),
-            selected='SHG'),
+            selected=default_beg),
+          hidden(textInput('txt_beg', 'point begin code', value=default_beg)),
+          
           selectInput(
             'sel_end', 'End:',
             nodes  %$% 
               split(.[,c('name','code')], group) %>%
               lapply(function(x) setNames(x$code, x$name)),
-            selected='KTM'))),
+            selected=default_end),
+          hidden(textInput('txt_end', 'point end code', value=default_end)))),
       
       fluidRow(
         column(
