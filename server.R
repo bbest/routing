@@ -19,6 +19,7 @@ shinyServer(function(input, output, session) {
   # default route begin/end select values
   txt_beg_now <<- default_beg
   txt_end_now <<- default_end
+  bbox_now    <<- default_study
   
   run_routing = function(lonlat1, lonlat2){
 
@@ -171,20 +172,7 @@ shinyServer(function(input, output, session) {
       }  
     })
   })
-#   points <- eventReactive(input$btn_reroute, {
-#     # lr: 48.282911, -121.955969 (lon, lng)
-#     # ul: 54.552710, -134.326578
-#     # lon: 55 - 48 = 7
-#     # lng: -121 - -134 = 13
-#     #     x = c(-134, -121)
-#     #     y = c(48, 55)
-#     #     n = 10
-#     #     cbind(rnorm(n) * diff(x)/2 + mean(x), rnorm(n) * diff(y)/2 + mean(y))
-#     isolate({
-#       sprintf('%s to %s', input$sel_beg, input$sel_end)
-#     })
-#   })
-  
+
   # chart ----
   d_hover <- function(x) {
     if(is.null(x)) return(NULL)
@@ -256,19 +244,26 @@ shinyServer(function(input, output, session) {
 
   # map ----
   get_bbox <- reactive({
-    if ('pts' %in% names(attributes(get_routes()))){
-      # if pts in current route
-      attr(get_routes(), 'pts') %>%
+    if('pts' %in% names(attributes(get_routes()))){
+      bbox_pts = attr(get_routes(), 'pts') %>%
         extent() %>%
         c(.@xmin, .@ymin, .@xmax, .@ymax) %>%
         .[-1] %>% unlist()
     } else {
-      # return bbox of extent
+      bbox_pts = NULL  
+    }
+    bbox_study = 
       extents %>%
         filter(code == input$sel_extent) %>%
         select(lon_min, lat_min, lon_max, lat_max) %>%
         as.numeric()
+    if (bbox_now != input$sel_extent){
+      bbox_now <<- input$sel_extent
+      return(bbox_study)
+    } else {
+      return(bbox_pts)
     }
+      
   })
 
   x = (r / cellStats(r,'max'))

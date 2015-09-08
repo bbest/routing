@@ -72,6 +72,7 @@ spp_names = setNames(object=row.names(v), nm=v$values)
 default_transform = 'x * 10'
 default_beg = 'SHG'
 default_end = 'KTM'
+default_study = 'BC'
 
 # paths
 if (Sys.info()[['sysname']] == 'Darwin'){

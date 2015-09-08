@@ -34,7 +34,8 @@ shinyUI(fluidPage(
             extents %>% 
               filter(routing==T) %$% 
               split(.[,c('name','code')], country) %>%
-              lapply(function(x) setNames(x$code, x$name))),
+              lapply(function(x) setNames(x$code, x$name)),
+            selected=default_study),
           
           selectInput(
             'sel_spp', 'Species:',
