@@ -212,7 +212,7 @@ r1[!is.na(r)] = 1
 
 # Cetmap Test ----
 #img_ec = '~/Downloads/CetMap_2015-09_public-release/Duke_CetMap_Models_EC_20150602/Model_Predictions/North_Atlantic_right_whale_month07_abundance.img'
-img_ec = '../consmap-prep/data/CetMap_2015-09_public-release/Duke_CetMap_Models_EC_20150602/Model_Predictions/Atlantic_spotted_dolphin_abundance.img'
+img_ec = '../test_siting/Atlantic_spotted_dolphin_abundance.img'
 r_ec_aea = raster(img_ec)
 r_ec_mer = projectRaster(r_ec_aea, crs=CRS(epsg3857), res=10000, method='bilinear')
 #plot(r_ec)
