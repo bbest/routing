@@ -148,5 +148,5 @@ shinyUI(fluidPage(
       fluidRow(
         h2('Static Mockup'),
         p("Here's an idea of what the interface will look like:"),
-        img(src='data/lucidchart/Siting.png'),
-        img(src='data/lucidchart/Map_Popup.png'))))))
+        img(src='img/lucidchart/Siting.png'),
+        img(src='img/lucidchart/Map_Popup.png'))))))

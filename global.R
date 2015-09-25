@@ -83,7 +83,7 @@ if (Sys.info()[['sysname']] == 'Darwin'){
   app_dir = '/shiny/bbest/consmap'
 }
 
-addResourcePath('data','data')
+addResourcePath('img','img')
 
 data = c(
   rdata           = sprintf('routes/routes_%s_to_%s.Rdata', default_beg, default_end), # '~/Google Drive/dissertation/data/routing/demo.Rdata'

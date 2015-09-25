@@ -3,9 +3,11 @@ Conservation Mapping handled spatially as a routing or siting problem to minimiz
 
 Here's an example interaction of choosing different routes based on a tradeoff between conservation of species (by risk of encounter) versus cost to industry (in km extra distance):
 
-![routing animation](https://raw.githubusercontent.com/bbest/consmap/master/prep/gif/routing_animation.gif)
+  ![routing animation](https://raw.githubusercontent.com/bbest/consmap/master/img/routing_animation.gif)
 
-This is very much a work in progress, and I'll eventually host the Shiny app on a [Duke Marine Geospatial Laboratory](http://mgel.env.duke.edu) server, but meanwhile you can preview the app at https://bdbest.shinyapps.io/consmap.
+This is very much a work in progress. You can see the Shiny app here:
+
+  http://shiny.env.duke.edu/bbest/consmap
 
 ## Acknowledgements
 
