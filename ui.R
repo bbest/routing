@@ -134,4 +134,19 @@ shinyUI(fluidPage(
     
     tabPanel(
       "Siting", icon = icon('map-marker'),
-      helpText('Coming soon...')))))
+      fluidRow(
+        column(
+          8,
+          leafletOutput('map_sit', height='400px')) #,
+#         column(
+#           4,  # 
+#           hidden(textInput('txt_sit_transform', 'selected transform', value = default_transform)),
+#           div(
+#             style = 'height:400px; background-color:#f5f5f5',
+#             ggvisOutput('ggvis_sit')))
+        ),
+      fluidRow(
+        h2('Static Mockup'),
+        p("Here's an idea of what the interface will look like:"),
+        img(src='data/lucidchart/Siting.png'),
+        img(src='data/lucidchart/Map_Popup.png'))))))

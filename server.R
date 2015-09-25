@@ -300,6 +300,9 @@ shinyServer(function(input, output, session) {
 #       addRasterImage(
 #         x, opacity = 0.8, project = F, group='c',
 #         colors = colorNumeric(palette = 'Reds', domain = x_rng, na.color = "#00000000", alpha = TRUE)) %>%
+      addRasterImage(
+        r_ec_mer, opacity = 0.8, project = F, group='Raster',
+        colors = colorNumeric(palette = 'Reds', domain = c(cellStats(r_ec_mer, 'min'), cellStats(r_ec_mer, 'max')), na.color = "#00000000", alpha = TRUE)) %>%
       # TODO: add popup, xfer raster vals to spp_ply, on fly composite to tmp_val
       addPolygons(
         data = spp_ply, group='Species',
@@ -340,11 +343,25 @@ shinyServer(function(input, output, session) {
       # Layers control
       addLayersControl(
         #baseGroups = c("OSM (default)", "Toner", "Toner Lite"),
-        overlayGroups = c('Route', 'Points', 'Ports', 'Oceanic Access', 'Species'),
+        overlayGroups = c('Route', 'Points', 'Ports', 'Oceanic Access', 'Species','Raster'),
         options = layersControlOptions(collapsed=T)
       ) %>%
       fitBounds(b[1], b[2], b[3], b[4])
   })
+  
+  output$map_sit <- renderLeaflet({
+    leaflet() %>%
+      addProviderTiles("Stamen.TonerLite", options = providerTileOptions(noWrap = TRUE)) %>% 
+      addRasterImage(
+        r_ec_mer, opacity = 0.8, project = F, group='Raster',
+        colors = colorNumeric(palette = 'Reds', domain = c(cellStats(r_ec_mer, 'min'), cellStats(r_ec_mer, 'max')), na.color = "#00000000", alpha = TRUE)) %>%
+      addLayersControl(
+        baseGroups = c("OSM (default)", "Toner", "Toner Lite"),
+        options = layersControlOptions(collapsed=T)
+      )
+  })
+  
+  
   
   # When map is clicked, show a popup, eventually add new points
   observe({
@@ -373,6 +390,20 @@ shinyServer(function(input, output, session) {
                     layerId = 'click')
         updateTextInput(session, 'txt_end', value = sprintf('NEW_%0.3f,%0.3f', click$lng, click$lat))
       }
+      
+      # display raster info
+      print(click)
+      click_gcs = SpatialPoints(
+        matrix(unlist(click[c('lng','lat')]), ncol=2), 
+        proj4string=CRS(epsg4326))
+      click_aea = spTransform(click_gcs, crs(crs(r_ec_aea)))
+      leafletProxy('map') %>%
+        addPopups(click$lng, click$lat, 
+                  sprintf(
+                    'Value @ %0.3f, %0.3f: %0.4f', 
+                    click$lng, click$lat, extract(r_ec_aea, click_aea)), 
+                  layerId = 'click')
+      
     })
   })
   

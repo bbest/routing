@@ -83,6 +83,8 @@ if (Sys.info()[['sysname']] == 'Darwin'){
   app_dir = '/shiny/bbest/consmap'
 }
 
+addResourcePath('data','data')
+
 data = c(
   rdata           = sprintf('routes/routes_%s_to_%s.Rdata', default_beg, default_end), # '~/Google Drive/dissertation/data/routing/demo.Rdata'
   grd             = 'v72zw_epsg3857.grd', # '~/Google Drive/dissertation/data/bc/v72zw_epsg3857.grd'
@@ -207,6 +209,13 @@ x = (r / cellStats(r,'max'))
 r1 = r
 r1[!is.na(r)] = 1
 
+
+# Cetmap Test ----
+#img_ec = '~/Downloads/CetMap_2015-09_public-release/Duke_CetMap_Models_EC_20150602/Model_Predictions/North_Atlantic_right_whale_month07_abundance.img'
+img_ec = '~/github/consmap-prep/data/CetMap_2015-09_public-release/Duke_CetMap_Models_EC_20150602/Model_Predictions/Atlantic_spotted_dolphin_abundance.img'
+r_ec_aea = raster(img_ec)
+r_ec_mer = projectRaster(r_ec_aea, crs=CRS(epsg3857), res=10000, method='bilinear')
+#plot(r_ec)
 
 # run standalone ----
 
