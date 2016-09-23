@@ -1,10 +1,12 @@
-# Routing Ships around Whale Hotspots
+# routing
 
-Here's an example interaction of choosing different routes based on a tradeoff between conservation of species (by risk of encounter) versus cost to industry (in km extra distance):
+Routing ships to minimize whale strikes
 
-  ![routing animation](https://raw.githubusercontent.com/bbest/consmap/master/img/routing_animation.gif)
+![routing animation](https://raw.githubusercontent.com/bbest/consmap/master/img/routing_animation.gif)
 
-This is very much a work in progress. You can see the Shiny app here:
+_Routes between starting and end points are selectable from the drop-down selections as ports and major entry points to British Columbia, or arbitrary start and end points can be entered. Routes are then visible in the interactive map based on varying levels of avoidance of marine mammal hotspots as derived by summing across marine mammal density surfaces and weighting by conservation concern. This uses a prescriptive least-cost routing approach rather than post-hoc evaluation of proposed routes._
+  
+This is a work in progress. You can see the Shiny app here:
 
   http://shiny.env.duke.edu/bbest/routing
 
