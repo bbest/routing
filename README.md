@@ -1,6 +1,6 @@
 # routing
 
-Routing ships to minimize whale strikes
+Routing ships to avoid whale strike
 
 ![routing animation](https://raw.githubusercontent.com/bbest/consmap/master/img/routing_animation.gif)
 
